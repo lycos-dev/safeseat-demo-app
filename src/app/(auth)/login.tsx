@@ -1,10 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
 import AuthBackground from "@/components/auth-background";
 import Button from "@/components/button";
 import TextInput from "@/components/text-input";
 import { Spacing as spacing } from "@/constants/theme";
-import visibilityXml from "@expo/material-symbols/visibility.xml";
-import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
-import { Host, Icon } from "@expo/ui";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as LocalStore from "@/services/local-store";
@@ -141,14 +139,11 @@ export default function Login() {
                         onPress={() => setPasswordVisible((value) => !value)}
                         style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
                       >
-                        <Host>
-                          <Icon
-                            name={Icon.select({
-                              ios: passwordVisible ? "eye.slash.fill" : "eye.fill",
-                              android: passwordVisible ? visibilityOffXml : visibilityXml,
-                            })}
-                          />
-                        </Host>
+                        <Ionicons
+                          name={passwordVisible ? "eye-off-outline" : "eye-outline"}
+                          size={21}
+                          color="#9FB0C3"
+                        />
                       </Pressable>
                     </View>
                   </View>

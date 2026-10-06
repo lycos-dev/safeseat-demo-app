@@ -1,9 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
 import ThemedHost from "@/components/themed-host";
 // components/PasswordVerifyModal.tsx
 import { type ThemePalette, Spacing as spacing, FontSize as fontsize } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { extendSession } from "@/utils/securitySession";
-import { Host, Icon } from "@expo/ui";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet } from "react-native";
@@ -17,8 +17,6 @@ import Button from "./button";
 import { auth } from "../firebase";
 import { EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
-import visibilityXml from "@expo/material-symbols/visibility.xml";
-import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
 
 type Props = {
     visible: boolean;
@@ -118,15 +116,9 @@ export default function PasswordVerifyModal({ visible, onClose, onSuccess }: Pro
                                         <View style={{ paddingHorizontal: spacing.two, paddingVertical: spacing.one }}>
                                             <ThemedHost>
                                                 {!passVisible ? (
-                                                    <Icon name={Icon.select({
-                                                        ios: "eye.fill",
-                                                        android: visibilityXml
-                                                    })} color={themes.textSecondary} />
+                                                    <Ionicons name="eye-outline" size={21} color={themes.textSecondary} />
                                                 ) : (
-                                                    <Icon name={Icon.select({
-                                                        ios: "eye.slash.fill",
-                                                        android: visibilityOffXml
-                                                    })} color={themes.textSecondary} />
+                                                    <Ionicons name="eye-off-outline" size={21} color={themes.textSecondary} />
                                                 )
                                                 }
                                             </ThemedHost>

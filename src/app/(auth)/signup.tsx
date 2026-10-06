@@ -1,10 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
 import AuthBackground from "@/components/auth-background";
 import Button from "@/components/button";
 import TextInput from "@/components/text-input";
 import { Spacing as spacing } from "@/constants/theme";
-import visibilityXml from "@expo/material-symbols/visibility.xml";
-import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
-import { Host, Icon } from "@expo/ui";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -122,14 +120,11 @@ export default function Signup() {
       onPress={onPress}
       style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
     >
-      <Host>
-        <Icon
-          name={Icon.select({
-            ios: visible ? "eye.slash.fill" : "eye.fill",
-            android: visible ? visibilityOffXml : visibilityXml,
-          })}
-        />
-      </Host>
+      <Ionicons
+        name={visible ? "eye-off-outline" : "eye-outline"}
+        size={21}
+        color="#9FB0C3"
+      />
     </Pressable>
   );
 

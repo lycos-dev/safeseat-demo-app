@@ -1,0 +1,287 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminDoc() {
+      return get(/databases/$(database)/documents/admin_accounts/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admin_accounts/$(request.auth.uid))
+        && adminDoc().data.status != 'DISABLED'
+        && adminDoc().data.enabled != false;
+    }
+
+    function noPrivateTelemetry(data) {
+      return !data.keys().hasAny([
+        'heartRate', 'hr', 'respirationRate', 'rr', 'objectTemperature', 'ambientTemperature',
+        'temperature', 'fsrValues', 'pressureValues', 'mpuSamples', 'accelerometerSamples',
+        'gyroscopeSamples', 'rawSensorData', 'sensorReadings', 'cameraFrame', 'cameraFrames',
+        'image', 'imageUrl', 'frameUrl', 'video', 'videoUrl'
+      ]);
+    }
+
+    function validModuleStatus(value) {
+      return value in ['operational', 'degraded', 'offline', 'standby'];
+    }
+
+    function ownsVehicle(vehicleId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/vehicles/$(vehicleId))
+        && get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isActiveMobileUser() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/account_directory/$(request.auth.uid))
+        && get(/databases/$(database)/documents/account_directory/$(request.auth.uid)).data.status == 'ACTIVE';
+    }
+
+    function safeAccountDirectory(data) {
+      return noPrivateTelemetry(data)
+        && data.keys().hasOnly([
+          'name', 'email', 'operatorId', 'role', 'status', 'consent',
+          'lastActive', 'createdAt', 'updatedAt', 'provisioningStatus'
+        ])
+        && data.role in ['Driver', 'Occupant']
+        && data.status in ['ACTIVE', 'DISABLED']
+        && (!('consent' in data) || data.consent.keys().hasOnly([
+          'dataSharing', 'healthMonitoring', 'emergencyEscalation'
+        ]));
+    }
+
+    function safeVehicle(data) {
+      return noPrivateTelemetry(data)
+        && data.keys().hasOnly([
+          'ownerUid', 'plate', 'label', 'driverId', 'monitoredSeat', 'hubId',
+          'connection', 'createdAt', 'updatedAt'
+        ])
+        && (!('ownerUid' in data) || data.ownerUid == null || data.ownerUid is string)
+        && (!('driverId' in data) || data.driverId == null || data.driverId is string)
+        && (!('connection' in data) || data.connection in ['online', 'offline']);
+    }
+
+    function validOccupant(data) {
+      return data.occupantType in ['registered', 'profile', 'guest']
+        && (data.occupantType != 'registered' || data.occupantUserId is string)
+        && (data.occupantType != 'profile' || (
+          data.profileOwnerUid is string
+          && data.profileId is string
+          && data.profileDisplayName is string
+        ))
+        && (data.occupantType != 'guest' || data.guestSessionId is string);
+    }
+
+    function safeSession(data) {
+      return noPrivateTelemetry(data)
+        && data.keys().hasOnly([
+          'ownerUid', 'vehicleId', 'seat', 'occupantType', 'occupantUserId',
+          'profileOwnerUid', 'profileId', 'profileDisplayName',
+          'guestSessionId', 'guestDisplayName', 'fusionState', 'cameraState',
+          'active', 'lastUpdate', 'updatedAt'
+        ])
+        && data.ownerUid is string
+        && data.vehicleId is string
+        && validOccupant(data)
+        && data.fusionState in ['NORMAL', 'SUSPECTED', 'VERIFYING', 'EMERGENCY', 'CLEARED']
+        && data.cameraState in ['Standby', 'Verifying', 'Unavailable']
+        && data.active is bool;
+    }
+
+    function safeIncident(data) {
+      return noPrivateTelemetry(data)
+        && data.keys().hasOnly([
+          'ownerUid', 'vehicleId', 'seat', 'occupantType', 'occupantUserId',
+          'profileOwnerUid', 'profileId', 'profileDisplayName',
+          'guestSessionId', 'guestDisplayName', 'category', 'triggerSummary',
+          'posture', 'stateAtPeak', 'status', 'resolution', 'smsEscalated',
+          'timeline', 'occurredAt', 'createdAt', 'updatedAt', 'resolvedAt'
+        ])
+        && data.ownerUid is string
+        && data.vehicleId is string
+        && validOccupant(data)
+        && data.stateAtPeak in ['NORMAL', 'SUSPECTED', 'VERIFYING', 'EMERGENCY', 'CLEARED']
+        && data.status in ['ESCALATED', 'RESOLVED', 'CLEARED']
+        && data.smsEscalated is bool;
+    }
+
+    function safeHardware(data) {
+      return noPrivateTelemetry(data)
+        && data.keys().hasOnly([
+          'ownerUid', 'vehicleId', 'overallStatus', 'mainHub', 'c1001', 'mlx90614',
+          'backrestFsr', 'cushionFsr', 'mpu6050', 'camera', 'lastSeen', 'updatedAt'
+        ])
+        && data.ownerUid is string
+        && data.vehicleId is string
+        && validModuleStatus(data.overallStatus)
+        && validModuleStatus(data.mainHub)
+        && validModuleStatus(data.c1001)
+        && validModuleStatus(data.mlx90614)
+        && validModuleStatus(data.backrestFsr)
+        && validModuleStatus(data.cushionFsr)
+        && validModuleStatus(data.mpu6050)
+        && validModuleStatus(data.camera);
+    }
+
+    // ── Mobile app private namespace ──────────────────────────────────
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+
+      match /profiles/{profileId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /settings/{settingId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /emergencyContacts/{contactId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /activeTrip/{tripId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /tripHistory/{tripId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+    }
+
+    // ── Shared privacy-minimized Admin/mobile contract ───────────────
+
+    match /admin_accounts/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /account_directory/{accountId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == accountId);
+      allow create: if safeAccountDirectory(request.resource.data)
+        && (
+          (isAdmin()
+            && request.resource.data.consent.dataSharing == false
+            && request.resource.data.consent.healthMonitoring == false
+            && request.resource.data.consent.emergencyEscalation == false)
+          || (signedIn() && request.auth.uid == accountId)
+        );
+      allow update: if safeAccountDirectory(request.resource.data)
+        && (
+          (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+          || (signedIn()
+            && request.auth.uid == accountId
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'name', 'email', 'operatorId', 'role', 'consent', 'lastActive', 'updatedAt', 'provisioningStatus'
+            ]))
+        );
+      allow delete: if false;
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.ownerUid == request.auth.uid || resource.data.driverId == request.auth.uid));
+      allow create: if safeVehicle(request.resource.data)
+        && (
+          isAdmin()
+          || (isActiveMobileUser()
+            && request.resource.data.ownerUid == request.auth.uid
+            && request.resource.data.driverId == request.auth.uid)
+        );
+      allow update: if safeVehicle(request.resource.data)
+        && (
+          isAdmin()
+          || (isActiveMobileUser()
+            && request.resource.data.ownerUid == request.auth.uid
+            && request.resource.data.driverId == request.auth.uid
+            && (
+              resource.data.ownerUid == request.auth.uid
+              || (!('ownerUid' in resource.data) && resource.data.driverId == request.auth.uid)
+            ))
+        );
+      allow delete: if false;
+    }
+
+    match /monitoring_sessions/{sessionId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isActiveMobileUser()
+        && request.resource.data.ownerUid == request.auth.uid
+        && safeSession(request.resource.data);
+      allow update: if isActiveMobileUser()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && safeSession(request.resource.data);
+      allow delete: if isActiveMobileUser() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /incidents/{incidentId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isActiveMobileUser()
+        && request.resource.data.ownerUid == request.auth.uid
+        && safeIncident(request.resource.data);
+      allow update: if
+        (isAdmin()
+          && noPrivateTelemetry(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'resolution', 'resolvedAt', 'updatedAt'
+          ]))
+        || (isActiveMobileUser()
+          && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['smsEscalated', 'updatedAt'])
+          && safeIncident(request.resource.data));
+      allow delete: if false;
+    }
+
+    match /hardware_status/{vehicleId} {
+      // Vehicle ownership is authoritative. A stale/legacy hardware_status
+      // document must not permanently block the current owner of the vehicle.
+      allow read: if isAdmin() || (isActiveMobileUser() && ownsVehicle(vehicleId));
+      allow create, update: if isActiveMobileUser()
+        && ownsVehicle(vehicleId)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.vehicleId == vehicleId
+        && safeHardware(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /admin_settings/{uid} {
+      allow read: if isAdmin() && request.auth.uid == uid;
+      allow create, update: if isAdmin()
+        && request.auth.uid == uid
+        && noPrivateTelemetry(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /diagnostic_requests/{requestId} {
+      allow read: if isAdmin() || (isActiveMobileUser() && ownsVehicle(resource.data.vehicleId));
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'vehicleId', 'requestedBy', 'status', 'requestedAt', 'privacyContract'
+        ])
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.privacyContract == 'DERIVED_HEALTH_ONLY'
+        && noPrivateTelemetry(request.resource.data);
+      allow update: if isActiveMobileUser() && ownsVehicle(resource.data.vehicleId)
+        && request.resource.data.vehicleId == resource.data.vehicleId
+        && request.resource.data.requestedBy == resource.data.requestedBy
+        && request.resource.data.privacyContract == resource.data.privacyContract
+        && request.resource.data.status == 'COMPLETE'
+        && request.resource.data.result in ['operational', 'degraded', 'offline']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'result', 'completedAt', 'updatedAt'
+        ])
+        && noPrivateTelemetry(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

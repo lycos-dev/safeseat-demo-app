@@ -1,0 +1,14 @@
+SafeSeat Mobile ↔ Admin integration validation
+==============================================
+- Modified TypeScript/TSX files pass syntax-oriented TypeScript checks.
+- Existing regression suite: 6/7 tests pass. The one failing preferences
+  persistence test also fails unchanged on the uploaded baseline, so it is not
+  introduced by this Firebase/Admin integration.
+- The new cloud bridge writes derived states and hardware health only; hidden
+  researcher/UAT simulated emergencies are explicitly excluded from real
+  Admin incidents.
+
+A full Expo typecheck/build was not completed in the packaging environment
+because dependency installation timed out. Run locally after npm install:
+  npm run typecheck
+  npm test

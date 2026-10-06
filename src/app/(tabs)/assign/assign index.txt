@@ -1,0 +1,406 @@
+import { Themes as themes, Spacing as spacing, FontSize as fontsize } from "@/constants/theme";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBanner } from "@/hooks/banner-context";
+import {
+	Alert,
+	ImageBackground,
+	Platform,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View
+} from "react-native";
+import { Host, Icon } from "@expo/ui";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import AssignCard from "@/components/assign-card";
+import AssignSeatModal from "@/components/assign-seat-modal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
+import { useCallback, useState } from "react";
+
+import Button from "@/components/button";
+import InfoCard from "@/components/info-card";
+
+type Profile = {
+	id: string;
+	name: string;
+	photoURL?: string;
+	icon?: string;
+	pfp?: string; // Added pfp key support
+	isAccountOwner?: boolean;
+};
+
+export type SeatState = "empty" | "assigned" | "safe" | "warning" | "emergency";
+
+const SEAT_ASSIGNMENTS_KEY = "seatAssignments";
+const IS_LOCKED_IN_KEY = "isLockedIn";
+const SEAT_STATUSES_KEY = "seatStatuses";
+
+const SEATS = [
+	{ seatNo: 1, seatCode: "driver" },
+	{ seatNo: 2, seatCode: "passenger" },
+	{ seatNo: 3, seatCode: "l backseat" },
+	{ seatNo: 4, seatCode: "c backseat" },
+	{ seatNo: 5, seatCode: "r backseat" },
+];
+
+export default function Assign() {
+	const router = useRouter();
+	const insets = useSafeAreaInsets();
+
+	const bottomPad = 104 + (insets.bottom / 2); // extra breathing room
+
+	const { showBanner, hideBanner } = useBanner();
+
+	const [assignModalVisible, setAssignModalVisible] = useState(false);
+	const [selectedSeat, setSelectedSeat] = useState(1);
+
+	// Map seat numbers (1-5) to assigned Profiles
+	const [assignments, setAssignments] = useState<Record<number, Profile>>({});
+
+	// Lock-in state & status mapping (seatNo -> "safe" | "warning" | "emergency")
+	const [isLockedIn, setIsLockedIn] = useState<boolean>(false);
+	const [seatStatuses, setSeatStatuses] = useState<Record<number, SeatState>>({});
+
+	// Check if at least one seat has an assigned profile
+	const hasAssignedSeats = Object.values(assignments).some((profile) => Boolean(profile));
+
+	// 📥 Load saved state on focus
+	const loadState = useCallback(async () => {
+		try {
+			const [rawAssignments, rawLockedIn, rawStatuses] = await Promise.all([
+				AsyncStorage.getItem(SEAT_ASSIGNMENTS_KEY),
+				AsyncStorage.getItem(IS_LOCKED_IN_KEY),
+				AsyncStorage.getItem(SEAT_STATUSES_KEY),
+			]);
+
+			if (rawAssignments) {
+				setAssignments(JSON.parse(rawAssignments));
+			} else {
+				setAssignments({});
+			}
+
+			if (rawLockedIn) {
+				setIsLockedIn(JSON.parse(rawLockedIn));
+			}
+
+			if (rawStatuses) {
+				setSeatStatuses(JSON.parse(rawStatuses));
+			}
+		} catch (error) {
+			console.error("Failed to load seat & lock state:", error);
+		}
+	}, []);
+
+	useFocusEffect(
+		useCallback(() => {
+			loadState();
+		}, [loadState])
+	);
+
+	// 🛠️ Derive the current state for any given seat number
+	const getCardState = (seatNo: number): SeatState => {
+		const hasProfile = Boolean(assignments[seatNo]);
+
+		if (!hasProfile) return "empty";
+		if (!isLockedIn) return "assigned";
+
+		// When locked in, return its live status (defaulting to "safe")
+		return seatStatuses[seatNo] ?? "safe";
+	};
+
+	// 🔒 Lock In Handler
+	const handleLockIn = async () => {
+		if (!hasAssignedSeats) return;
+
+		Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+		// Default all currently assigned seats to "safe" status upon lock-in
+		const initialStatuses: Record<number, SeatState> = {};
+		Object.keys(assignments).forEach((seatStr) => {
+			const seatNum = parseInt(seatStr, 10);
+			initialStatuses[seatNum] = seatStatuses[seatNum] ?? "safe";
+		});
+
+		try {
+			await Promise.all([
+				AsyncStorage.setItem(IS_LOCKED_IN_KEY, JSON.stringify(true)),
+				AsyncStorage.setItem(SEAT_STATUSES_KEY, JSON.stringify(initialStatuses)),
+			]);
+
+			setIsLockedIn(true);
+			setSeatStatuses(initialStatuses);
+		} catch (error) {
+			console.error("Failed to lock in assignments:", error);
+			Alert.alert("Error", "Could not save locked-in state.");
+		}
+	};
+
+	// 🔓 Unlock Handler
+	const handleUnlock = () => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+		Alert.alert("Unlock?", "Are you sure you want to unlock current seat assignment?", [
+			{
+				text: "Cancel",
+				style: "cancel"
+			},
+			{
+				text: "Unlock",
+				style: "default",
+				onPress: async () => {
+					try {
+						await AsyncStorage.setItem(IS_LOCKED_IN_KEY, JSON.stringify(false));
+						setIsLockedIn(false);
+						Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+					} catch (error) {
+						console.error("Failed to unlock assignments:", error);
+					}
+				}
+			}
+		]);
+	};
+
+	// ⚡ Mutator: Update status for a specific locked seat ("safe" | "warning" | "emergency")
+	const updateSeatStatus = async (seatNo: number, status: "safe" | "warning" | "emergency") => {
+		const updatedStatuses = { ...seatStatuses, [seatNo]: status };
+		setSeatStatuses(updatedStatuses);
+
+		if (status === "emergency") {
+			// Get the name of the person in this seat (or default to "A passenger")
+			const assignedProfile = assignments[seatNo];
+			const passengerName = assignedProfile
+				? (assignedProfile.isAccountOwner ? "Me" : assignedProfile.name)
+				: `Seat ${seatNo}`;
+
+			// Trigger global banner
+			showBanner(`${passengerName} is having an emergency!`);
+
+			setDismissedSeats((prev) => {
+				const next = new Set(prev);
+				next.delete(seatNo);
+				return next;
+			});
+		}
+		// NOTE: We deliberately DO NOT call hideBanner() here when status changes away from "emergency".
+		// The banner will remain visible until the user manually dismisses it via the banner's close button or unlocks assignments.
+
+		try {
+			await AsyncStorage.setItem(SEAT_STATUSES_KEY, JSON.stringify(updatedStatuses));
+		} catch (error) {
+			console.error(`Failed to update status for seat ${seatNo}:`, error);
+		}
+	};
+
+	// Callback when modal updates or unassigns a seat
+	const handleSeatAssigned = (seatNumber: number, profile: Profile | null) => {
+		setAssignments((prev) => {
+			const updated = { ...prev };
+			if (profile) {
+				updated[seatNumber] = profile;
+			} else {
+				delete updated[seatNumber];
+			}
+			return updated;
+		});
+	};
+
+	// Card tap interaction
+	const handleCardPress = (seatNo: number) => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+		if (isLockedIn) {
+			const currentStatus = getCardState(seatNo);
+			if (currentStatus === "empty") return;
+
+			const nextStatus: Record<string, "safe" | "warning" | "emergency"> = {
+				safe: "warning",
+				warning: "emergency",
+				emergency: "safe",
+			};
+			updateSeatStatus(seatNo, nextStatus[currentStatus] ?? "safe");
+		} else {
+			setSelectedSeat(seatNo);
+			setAssignModalVisible(true);
+		}
+	};
+
+	const [dismissedSeats, setDismissedSeats] = useState<Set<number>>(new Set());
+
+	// Helper to transform display parameters and guarantee Base64 pfp propagation
+	const getDisplayProfile = (profile?: Profile): Profile | undefined => {
+		if (!profile) return undefined;
+
+		// Extracts base64 profile string from whichever key it was stored under
+		const base64Pfp = profile.icon || profile.pfp || profile.photoURL;
+
+		return {
+			...profile,
+			name: profile.isAccountOwner ? "Me" : profile.name,
+			icon: base64Pfp, // Assigns back to icon for assignedProfile prop
+		};
+	};
+
+	return (
+		<SafeAreaView
+			style={{
+				flex: 1,
+				backgroundColor: themes.background,
+			}}
+			edges={["left", "right", "bottom"]}
+		>
+			<ScrollView contentContainerStyle={[{ flexGrow: 1 }, { marginTop: spacing.one, paddingBottom: bottomPad }]} showsVerticalScrollIndicator={true} bounces={true}>
+				<View style={[styles.container]}>
+					<Text style={[styles.pageHeader, { color: themes.text }]}>
+						Assign
+					</Text>
+
+					<ImageBackground
+						source={require("../../../../assets/images/appImgs/car-cropped.png")}
+						style={{ height: 416, marginTop: spacing.two }}
+					>
+						<View
+							style={{
+								gap: spacing.one,
+								width: "100%",
+								borderWidth: spacing.none,
+								borderColor: themes.secondaryBttn,
+								borderRadius: spacing.one,
+							}}
+						>
+							{/* Front Row */}
+							<View style={{ gap: spacing.three, flexDirection: "row", height: 128, marginTop: spacing.ten, paddingHorizontal: spacing.eight }}>
+								<AssignCard
+									seatNo={1}
+									assignedProfile={getDisplayProfile(assignments[1])}
+									pfp={assignments[1]?.icon || assignments[1]?.pfp || assignments[1]?.photoURL || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNyV3QnQOwXP124try4wkWE0xXqxT6KZitbq4TerzfLkMDDY-v1CXzTGw&s=10"}
+									onPress={() => handleCardPress(1)}
+									state={getCardState(1)}
+									seatCode="driver"
+									locked={isLockedIn}
+								/>
+								<AssignCard
+									seatNo={2}
+									assignedProfile={getDisplayProfile(assignments[2])}
+									pfp={assignments[2]?.icon || assignments[2]?.pfp || assignments[2]?.photoURL || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNyV3QnQOwXP124try4wkWE0xXqxT6KZitbq4TerzfLkMDDY-v1CXzTGw&s=10"}
+									onPress={() => handleCardPress(2)}
+									state={getCardState(2)}
+									seatCode="passenger"
+									locked={isLockedIn}
+								/>
+							</View>
+
+							{/* Back Row */}
+							<View style={{ gap: spacing.one, flexDirection: "row", height: 128, paddingHorizontal: spacing.four, marginTop: spacing.two }}>
+								<AssignCard
+									seatNo={3}
+									assignedProfile={getDisplayProfile(assignments[3])}
+									pfp={assignments[3]?.icon || assignments[3]?.pfp || assignments[3]?.photoURL || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNyV3QnQOwXP124try4wkWE0xXqxT6KZitbq4TerzfLkMDDY-v1CXzTGw&s=10"}
+									onPress={() => handleCardPress(3)}
+									state={getCardState(3)}
+									seatCode="l backseat"
+									locked={isLockedIn}
+								/>
+								<AssignCard
+									seatNo={4}
+									assignedProfile={getDisplayProfile(assignments[4])}
+									pfp={assignments[4]?.icon || assignments[4]?.pfp || assignments[4]?.photoURL || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNyV3QnQOwXP124try4wkWE0xXqxT6KZitbq4TerzfLkMDDY-v1CXzTGw&s=10"}
+									onPress={() => handleCardPress(4)}
+									state={getCardState(4)}
+									seatCode="c backseat"
+									locked={isLockedIn}
+								/>
+								<AssignCard
+									seatNo={5}
+									assignedProfile={getDisplayProfile(assignments[5])}
+									pfp={assignments[5]?.icon || assignments[5]?.pfp || assignments[5]?.photoURL || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNyV3QnQOwXP124try4wkWE0xXqxT6KZitbq4TerzfLkMDDY-v1CXzTGw&s=10"}
+									onPress={() => handleCardPress(5)}
+									state={getCardState(5)}
+									seatCode="r backseat"
+									locked={isLockedIn}
+								/>
+							</View>
+						</View>
+					</ImageBackground>
+
+					{/* Lock In / Unlock Action Controls */}
+					<View style={{ paddingVertical: spacing.none, marginTop: -spacing.one }}>
+						{isLockedIn ? (
+							<Button
+								label="Unlock"
+								onPress={handleUnlock}
+								fullWidth={true}
+								variant="secondary"
+							/>
+						) : (
+							<Button
+								label="Lock In"
+								onPress={handleLockIn}
+								fullWidth={true}
+								variant="primary"
+								enabled={hasAssignedSeats}
+							/>
+						)}
+					</View>
+
+					<View style={{ gap: spacing.one, marginTop: spacing.none }}>
+						<Text style={styles.sectionHeader}>Weight Balance</Text>
+						<InfoCard
+							smolTopText="Front of the vehicle is"
+							smolBottomText="than the rear*"
+							bigText="147.7 lbs"
+							icon={
+								<Host>
+									<Icon name={Icon.select({
+										ios: "scalemass.fill",
+										android: import("@expo/material-symbols/weight.xml")
+									})} size={spacing.five} />
+								</Host>
+							} />
+						<Text style={styles.caption}>* Weight balance calculation is based on entered weight per profile.</Text>
+					</View>
+
+					<AssignSeatModal
+						seat={selectedSeat}
+						visible={assignModalVisible}
+						onClose={() => {
+							setAssignModalVisible(false);
+						}}
+						onSuccess={(seatNum, profile) => {
+							handleSeatAssigned(seatNum, profile);
+						}}
+					/>
+				</View>
+			</ScrollView>
+		</SafeAreaView>
+	);
+}
+
+const styles = StyleSheet.create({
+	container: {
+		flex: 1,
+		width: "100%",
+		paddingLeft: spacing.two,
+		paddingRight: spacing.two,
+		borderWidth: spacing.none,
+		borderColor: "#fff",
+		gap: spacing.three,
+	},
+	pageHeader: {
+		fontSize: fontsize.pageHeader,
+		fontFamily: "Logo-Font",
+		color: themes.text,
+		margin: spacing.none,
+	},
+	sectionHeader: {
+		fontSize: fontsize.header,
+		fontFamily: "Heading-Font",
+		color: themes.text
+	},
+	caption: {
+		fontSize: fontsize.caption,
+		color: themes.textSecondary,
+		fontFamily: "Body-Regular"
+	}
+});

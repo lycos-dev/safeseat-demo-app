@@ -1,0 +1,14 @@
+{
+  "build": "UAT_UX_R12",
+  "checks": {
+    "typescript_tsx_syntax_files_parsed": 68,
+    "typescript_tsx_syntax_errors": 0,
+    "watch_latch_present": true,
+    "latch_resets_on_session_start": true,
+    "latch_resets_on_session_end": true,
+    "offline_override_preserved": true,
+    "local_uat_simulation_present": true,
+    "simulation_contacts_main_hub": false,
+    "simulation_badge_present": true
+  }
+}

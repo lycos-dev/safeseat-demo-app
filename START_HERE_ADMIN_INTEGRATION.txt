@@ -1,0 +1,49 @@
+SAFESEAT MOBILE — ADMIN FIREBASE INTEGRATION (R30.2)
+===================================================
+
+THIS MOBILE FOLDER IS NOW FIREBASE-CLI READY.
+It includes firebase.json, .firebaserc, firestore.rules, and firestore.indexes.json.
+
+1) Install dependencies:
+   npm install
+
+2) Confirm Firebase CLI login:
+   firebase login
+
+3) Select the existing SafeSeat Firebase project:
+   firebase use safeseat-app
+
+   The previous "firebase use must be run from a Firebase project directory"
+   error happened because older Mobile builds did not contain firebase.json /
+   .firebaserc. R30.2 includes both files.
+
+4) Deploy the current shared Mobile/Admin Firestore contract:
+   firebase deploy --only firestore:rules,firestore:indexes
+
+   OR use the included helper (no `firebase use` step required):
+   npm run firebase:deploy:firestore
+
+5) Copy .env.example to .env (or merge the values into your existing .env).
+   Shared deployment identity:
+
+   EXPO_PUBLIC_SAFESEAT_VEHICLE_ID=SS-CAV-8151
+   EXPO_PUBLIC_SAFESEAT_VEHICLE_PLATE=CAV 8151
+   EXPO_PUBLIC_SAFESEAT_VEHICLE_LABEL=Toyota Vios Lumina Jade
+   EXPO_PUBLIC_SAFESEAT_HUB_ID=SAFESEAT-MAIN-HUB
+
+6) Start the Mobile app:
+   npx expo start -c
+
+7) Sign in. Assign a person to the physical SafeSeat hardware seat. The app
+   first ensures the privacy-safe account_directory record exists, then creates/
+   updates the vehicle and high-level hardware health records. Starting a seat
+   monitoring session creates/updates its own monitoring_sessions document.
+
+8) A real Main Hub emergency may create an Admin incident. Researcher/UAT local
+   simulations stay local and do not generate retained Admin incidents.
+
+PRIVACY BOUNDARY
+----------------
+The shared Admin collections never contain exact HR, RR, surface temperature,
+FSR/MPU raw samples, or camera frames. Passenger session-history readings stay
+inside the signed-in user's private users/{uid}/tripHistory namespace.

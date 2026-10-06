@@ -1,0 +1,21 @@
+SafeSeat Mobile R30 validation snapshot
+======================================
+Source base: uploaded safeseat-app-safeseat-live-app-final (10).zip
+
+Latest-source check:
+- Confirmed the upload is newer than the previously integrated mobile package.
+- Preserved the upload's newer auth/profile/form handling files and changes.
+
+Static validation:
+- 90 TS/TSX files transpiled successfully; 0 syntax errors.
+- No new npm dependency was added.
+
+Regression suite:
+- Updated package: 11/15 pass.
+- Original uploaded package: 11/15 pass.
+- Same 4 failures on both bases: tests 6, 7, 8, and 15.
+- Therefore no new regression-suite failure was introduced by the R30 feature work.
+
+Not completed in packaging environment:
+- Full Expo/Metro production build (dependency install did not complete).
+- Physical device / Main Hub / sensor / real Firebase end-to-end exercise.

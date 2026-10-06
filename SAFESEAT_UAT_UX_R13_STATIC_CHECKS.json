@@ -1,0 +1,12 @@
+{
+  "typescript_syntax_transpile": "PASS",
+  "hidden_warning_enabled": true,
+  "warning_delay_ms": 45000,
+  "warning_hold_ms": 10000,
+  "once_per_session": "PASS",
+  "session_start_anchored": "PASS",
+  "visible_diagnostics_simulator_removed": "PASS",
+  "simulation_badge_removed": "PASS",
+  "offline_override_preserved": "PASS",
+  "real_emergency_override_preserved": "PASS"
+}

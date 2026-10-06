@@ -1,0 +1,21 @@
+{
+  "base": "safeseat-app-safeseat-live-app-final (11).zip",
+  "target_runtime": "SafeSeat Runtime Main R5.4 Final Defense",
+  "checks": {
+    "typescript_tsx_parse": "PASS (91 source TS/TSX files parsed with TypeScript 5.8.3; 0 syntax errors)",
+    "routine_watch_hidden_as_safe": "PASS",
+    "post_alert_watch_maps_to_monitoring": "PASS",
+    "camera_does_not_replace_fusion_state": "PASS",
+    "passenger_camera_labels_hide_posture": "PASS",
+    "camera_unavailable_user_flow_has_no_unavailable_label": "PASS",
+    "hidden_camera_three_zone_control": "PASS",
+    "hidden_camera_requires_existing_uat": "PASS",
+    "no_visible_controlled_uat_indicator_added": "PASS",
+    "delete_single_session_local_and_cloud": "PASS",
+    "clear_history_local_and_cloud": "PASS",
+    "offline_delete_tombstones": "PASS",
+    "history_30_day_sync_retention": "PASS",
+    "history_detail_navigation_guard": "PASS",
+    "existing_regression_suite": "11 PASS / 4 FAIL; same 11/4 result reproduced on unmodified source ZIP, so failures are pre-existing harness/app issues unrelated to R31 changes"
+  }
+}

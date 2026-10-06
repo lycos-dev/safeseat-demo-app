@@ -1,0 +1,15 @@
+{
+  "typescript_source_files_checked": 74,
+  "syntax_error_files": 0,
+  "requirements": {
+    "larger_driver_typography": true,
+    "dedicated_seat_options": true,
+    "scrollable_settings_shortcuts": true,
+    "light_dark_mode": true,
+    "driver_only_sms_gate": true,
+    "rounded_guide_highlights": true,
+    "misleading_location_toggle_removed": true,
+    "firebase_auth_email_update": true
+  },
+  "note": "Full Expo type/build validation was not completed in this environment because dependency installation did not complete; run npm install and Expo on the target development machine."
+}

@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { format, isToday, isYesterday } from "date-fns";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -44,34 +43,28 @@ export default function SessionHistoryScreen() {
     router.push({ pathname: "/(tabs)/settings/session-detail" as any, params: { id: sessionId } });
   }, [router]);
 
-  const performClearHistory = useCallback(() => {
-    if (clearing || history.length === 0) return;
-    setClearing(true);
-    void clearSessionHistory()
-      .catch(() => {
-        Alert.alert("Could not finish clearing history", "The local history was cleared. SafeSeat will retry any pending cloud deletion when connectivity returns.");
-      })
-      .finally(() => setClearing(false));
-  }, [clearSessionHistory, clearing, history.length]);
-
   const confirmClearHistory = useCallback(() => {
     if (clearing || history.length === 0) return;
-    if (Platform.OS === "web") {
-      const confirmed = typeof window !== "undefined" && window.confirm(
-        "Clear session history?\n\nThis removes all completed session history from this device and your private SafeSeat cloud history. Active monitoring is not affected.",
-      );
-      if (confirmed) performClearHistory();
-      return;
-    }
     Alert.alert(
       "Clear session history?",
       "This removes all completed session history from this device and your private SafeSeat cloud history. Active monitoring is not affected.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Clear history", style: "destructive", onPress: performClearHistory },
+        {
+          text: "Clear history",
+          style: "destructive",
+          onPress: () => {
+            setClearing(true);
+            void clearSessionHistory()
+              .catch(() => {
+                Alert.alert("Could not finish clearing history", "The local history was cleared. SafeSeat will retry any pending cloud deletion when connectivity returns.");
+              })
+              .finally(() => setClearing(false));
+          },
+        },
       ],
     );
-  }, [clearing, history.length, performClearHistory]);
+  }, [clearSessionHistory, clearing, history.length]);
 
   const groups = useMemo(() => {
     const grouped: Array<{ label: string; items: SeatSessionRecord[] }> = [];

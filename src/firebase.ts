@@ -3,56 +3,46 @@ import { getApps, initializeApp } from "firebase/app";
 import {
   browserLocalPersistence,
   getAuth,
+  // @ts-expect-error - getReactNativePersistence exists in the RN bundle but isn't typed in the Firebase web SDK definitions
   getReactNativePersistence,
   initializeAuth,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { Platform } from "react-native";
 
-// SafeSeat Firebase public web configuration. These values are public Firebase
-// client configuration (security is enforced by Firestore/Auth rules).
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyBqQgglCpUg1hFxt6lM2BI2f5YI3mewlDA",
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "safeseat-app.firebaseapp.com",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "safeseat-app",
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "safeseat-app.firebasestorage.app",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1088522406363",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:1088522406363:web:0f8fbe44e9fdb259497ffe",
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-M33YE7MLY8",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// 1. Safe instance initialization
+const app =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-function getNativePersistenceStorage() {
-  // SafeSeat currently pins AsyncStorage 2.2.x, whose default export is the
-  // persistence object expected by Firebase Auth.
-  return AsyncStorage && typeof AsyncStorage.getItem === "function" ? AsyncStorage : null;
-}
-
-function getClientAuth() {
-  // Fast Refresh can run this module more than once. In that case Firebase
-  // reports "already initialized" and the existing instance is the correct one.
+// 2. Safe, crash-resistant Auth instance generation
+const getClientAuth = () => {
+  // Try to initialize Auth with the correct persistence first.
+  // If it's already been initialized (e.g. during Fast Refresh), this throws,
+  // and we fall back to grabbing the existing instance instead.
   try {
     if (Platform.OS === "web") {
-      return initializeAuth(app, { persistence: browserLocalPersistence });
-    }
-
-    const storage = getNativePersistenceStorage();
-    if (typeof getReactNativePersistence === "function" && storage) {
       return initializeAuth(app, {
-        persistence: getReactNativePersistence(storage),
+        persistence: browserLocalPersistence,
+      });
+    } else {
+      return initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
       });
     }
   } catch (error) {
-    // Only suppress the expected duplicate-initialization case. Any genuine
-    // configuration error should still surface clearly rather than producing
-    // a misleading "missing default export" route cascade.
-    const message = error instanceof Error ? error.message : String(error);
-    if (!/already initialized|already exists/i.test(message)) throw error;
+    return getAuth(app);
   }
-
-  return getAuth(app);
-}
+};
 
 export const auth = getClientAuth();
 export const db = getFirestore(app);

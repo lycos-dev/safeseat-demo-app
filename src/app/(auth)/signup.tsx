@@ -1,13 +1,15 @@
-import { Ionicons } from "@expo/vector-icons";
 import AuthBackground from "@/components/auth-background";
 import Button from "@/components/button";
 import TextInput from "@/components/text-input";
 import { Spacing as spacing } from "@/constants/theme";
+import visibilityXml from "@expo/material-symbols/visibility.xml";
+import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
+import { Host, Icon } from "@expo/ui";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { createUserWithEmailAndPassword, updateProfile, type User } from "firebase/auth";
-import * as LocalStore from "@/services/local-store";
+import * as SecureStore from "expo-secure-store";
 import { useRef, useState } from "react";
 import { saveUserProfile } from "@/services/user-profile";
 import { accountErrorMessage } from "@/utils/account-errors";
@@ -91,7 +93,7 @@ export default function Signup() {
         name: cleanName,
         phone: cleanPhone,
       });
-      await LocalStore.setItemAsync("is_logged_in", "true");
+      await SecureStore.setItemAsync("is_logged_in", "true");
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/home");
     } catch (error: any) {
@@ -120,11 +122,14 @@ export default function Signup() {
       onPress={onPress}
       style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
     >
-      <Ionicons
-        name={visible ? "eye-off-outline" : "eye-outline"}
-        size={21}
-        color="#9FB0C3"
-      />
+      <Host>
+        <Icon
+          name={Icon.select({
+            ios: visible ? "eye.slash.fill" : "eye.fill",
+            android: visible ? visibilityOffXml : visibilityXml,
+          })}
+        />
+      </Host>
     </Pressable>
   );
 

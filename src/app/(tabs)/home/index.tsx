@@ -1,4 +1,3 @@
-import { Platform } from "react-native";
 import ThemedHost from "@/components/themed-host";
 import EmergencyModal from "@/components/emergency-modal";
 import { SeatVitals } from "@/components/seat-card";
@@ -250,13 +249,13 @@ export default function Home() {
           toValue: 1,
           duration: 2200,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
         Animated.timing(ambientPulse, {
           toValue: 0,
           duration: 2200,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
       ]),
     );
@@ -275,13 +274,13 @@ export default function Home() {
           toValue: 1,
           duration: 900,
           easing: Easing.out(Easing.quad),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
         Animated.timing(livePulse, {
           toValue: 0,
           duration: 900,
           easing: Easing.in(Easing.quad),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
       ]),
     );
@@ -437,7 +436,7 @@ export default function Home() {
       damping: 17,
       stiffness: 145,
       mass: 0.8,
-      useNativeDriver: Platform.OS !== "web",
+      useNativeDriver: true,
     }).start();
   }, [heroEntrance, isLockedIn, overallState, screenFocused]);
 
@@ -456,13 +455,13 @@ export default function Home() {
           toValue: 1,
           duration,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
         Animated.timing(stateMotion, {
           toValue: 0,
           duration,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
       ]),
     );
@@ -481,7 +480,7 @@ export default function Home() {
         damping: 18,
         stiffness: 155,
         mass: 0.75,
-        useNativeDriver: Platform.OS !== "web",
+        useNativeDriver: true,
       })
     )).start();
   }, [assignments, isLockedIn, passengerEntrance, screenFocused]);

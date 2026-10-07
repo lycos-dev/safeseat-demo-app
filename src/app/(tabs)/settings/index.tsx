@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import * as LocalStore from "@/services/local-store";
+import * as SecureStore from "expo-secure-store";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useCallback, useRef, useState } from "react";
@@ -125,10 +125,10 @@ export default function Settings() {
           await clearSession();
           await AsyncStorage.multiRemove([SEAT_ASSIGNMENTS_KEY, SEAT_STATUSES_KEY, IS_LOCKED_IN_KEY, HARDWARE_SEAT_KEY, SEAT_CONSENTS_KEY, "app_emergency_contacts", "userPreferences"]);
           await Promise.all([
-            LocalStore.deleteItemAsync("user_health_profile"),
-            LocalStore.deleteItemAsync("user_privacy_prefs"),
-            LocalStore.deleteItemAsync("user_local_app_prefs"),
-            LocalStore.deleteItemAsync("is_logged_in"),
+            SecureStore.deleteItemAsync("user_health_profile"),
+            SecureStore.deleteItemAsync("user_privacy_prefs"),
+            SecureStore.deleteItemAsync("user_local_app_prefs"),
+            SecureStore.deleteItemAsync("is_logged_in"),
           ]);
           router.replace("/(auth)/login");
         } catch {

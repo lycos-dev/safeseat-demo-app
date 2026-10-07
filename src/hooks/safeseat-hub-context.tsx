@@ -69,7 +69,6 @@ const CONNECTED_POLL_MS = 1000;
 const DISCONNECTED_POLL_MS = 3000;
 const IS_LOCKED_IN_KEY = "isLockedIn";
 const WARNING_ALERT_INTERVAL_MS = 3_000;
-const WARNING_ALERT_DURATION_MS = 10_000;
 const EMERGENCY_ALERT_INTERVAL_MS = 4_000;
 
 function getErrorText(error: unknown): string {
@@ -101,7 +100,6 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
   const uatWarningDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveReadinessRef = useRef({ connected: false, telemetryReady: false });
   const warningAlertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const warningAlertStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emergencyAlertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -137,10 +135,6 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
     if (warningAlertIntervalRef.current) {
       clearInterval(warningAlertIntervalRef.current);
       warningAlertIntervalRef.current = null;
-    }
-    if (warningAlertStopRef.current) {
-      clearTimeout(warningAlertStopRef.current);
-      warningAlertStopRef.current = null;
     }
     if (emergencyAlertIntervalRef.current) {
       clearInterval(emergencyAlertIntervalRef.current);
@@ -354,18 +348,9 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
           replayWarningCue();
           warningAlertIntervalRef.current = setInterval(replayWarningCue, WARNING_ALERT_INTERVAL_MS);
 
-          // Keep researcher-triggered UAT Warning feedback running until the
-          // hidden control explicitly stops the simulation. Real sensor-driven
-          // Warning retains the normal 10-second feedback cap.
-          if (simulationState !== "warning") {
-            warningAlertStopRef.current = setTimeout(() => {
-              if (warningAlertIntervalRef.current) {
-                clearInterval(warningAlertIntervalRef.current);
-                warningAlertIntervalRef.current = null;
-              }
-              warningAlertStopRef.current = null;
-            }, WARNING_ALERT_DURATION_MS);
-          }
+          // WARNING feedback is state-driven: keep replaying the existing
+          // beep-beep cue at the same interval for as long as WARNING remains
+          // active. The cleanup below stops it immediately when the state clears.
           return;
         }
 

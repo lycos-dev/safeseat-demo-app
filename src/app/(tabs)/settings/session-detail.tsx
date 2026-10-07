@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Platform } from "react-native";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -64,32 +63,26 @@ export default function SessionDetailScreen() {
   const tempValues = numericSamples(session.samples, "surfaceTemperatureC");
   const endedAt = session.endedAt ?? Date.now();
 
-  const performDelete = () => {
-    if (deleting) return;
-    setDeleting(true);
-    void deleteSession(session.id)
-      .then(() => router.back())
-      .catch(() => {
-        setDeleting(false);
-        Alert.alert("Could not finish deletion", "The local copy was removed. SafeSeat will retry any pending cloud deletion when connectivity returns.");
-      });
-  };
-
   const confirmDeleteSession = () => {
     if (deleting) return;
-    if (Platform.OS === "web") {
-      const confirmed = typeof window !== "undefined" && window.confirm(
-        "Delete this session?\n\nThis removes the completed session from this device and your private SafeSeat cloud history. This cannot be undone.",
-      );
-      if (confirmed) performDelete();
-      return;
-    }
     Alert.alert(
       "Delete this session?",
       "This removes the completed session from this device and your private SafeSeat cloud history. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: performDelete },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            setDeleting(true);
+            void deleteSession(session.id)
+              .then(() => router.back())
+              .catch(() => {
+                setDeleting(false);
+                Alert.alert("Could not finish deletion", "The local copy was removed. SafeSeat will retry any pending cloud deletion when connectivity returns.");
+              });
+          },
+        },
       ],
     );
   };

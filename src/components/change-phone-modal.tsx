@@ -1,10 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import ThemedHost from "@/components/themed-host";
 // components/ChangePhoneModal.tsx
 import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
+import { Host, Icon } from "@expo/ui";
 import {
     Alert,
     Keyboard,
@@ -25,6 +25,8 @@ import { accountErrorMessage } from "@/utils/account-errors";
 import Button from "./button";
 import TextInput from "./text-input";
 
+import visibilityXml from "@expo/material-symbols/visibility.xml";
+import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
 
 type Props = {
     visible: boolean;
@@ -157,9 +159,15 @@ export default function ChangePhoneModal({ visible, onClose, onSuccess }: Props)
                                         <View style={{ paddingHorizontal: spacing.two, paddingVertical: spacing.one }}>
                                             <ThemedHost key={`password-eye-${themes.mode}`}>
                                                 {!passVisible ? (
-                                                    <Ionicons name="eye-outline" size={21} color={themes.textSecondary} />
+                                                    <Icon name={Icon.select({
+                                                        ios: "eye.fill",
+                                                        android: visibilityXml
+                                                    })} color={themes.textSecondary} />
                                                 ) : (
-                                                    <Ionicons name="eye-off-outline" size={21} color={themes.textSecondary} />
+                                                    <Icon name={Icon.select({
+                                                        ios: "eye.slash.fill",
+                                                        android: visibilityOffXml
+                                                    })} color={themes.textSecondary} />
                                                 )
                                                 }
                                             </ThemedHost>

@@ -7,7 +7,7 @@ import { Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { Host, Icon } from "@expo/ui";
 import { useEffect, useRef } from "react";
-import { Platform, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 export type SeatVitals = {
   trusted: boolean;
@@ -105,7 +105,7 @@ export default function SeatCard({
           toValue: 1,
           duration: 900,
           easing: Easing.linear,
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
       );
       spinnerLoop.start();
@@ -120,8 +120,8 @@ export default function SeatCard({
     const duration = state === "safe" ? 1500 : state === "warning" ? 760 : 520;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(motion, { toValue: 1, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== "web" }),
-        Animated.timing(motion, { toValue: 0, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(motion, { toValue: 1, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(motion, { toValue: 0, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
     loop.start();

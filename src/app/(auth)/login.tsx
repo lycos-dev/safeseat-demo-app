@@ -1,11 +1,13 @@
-import { Ionicons } from "@expo/vector-icons";
 import AuthBackground from "@/components/auth-background";
 import Button from "@/components/button";
 import TextInput from "@/components/text-input";
 import { Spacing as spacing } from "@/constants/theme";
+import visibilityXml from "@expo/material-symbols/visibility.xml";
+import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
+import { Host, Icon } from "@expo/ui";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as LocalStore from "@/services/local-store";
+import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { useRef, useState } from "react";
@@ -49,7 +51,7 @@ export default function Login() {
       authenticated = true;
       await saveUserProfile(credential.user);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await LocalStore.setItemAsync("is_logged_in", "true");
+      await SecureStore.setItemAsync("is_logged_in", "true");
       router.replace("/(tabs)/home");
     } catch (error: any) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -139,11 +141,14 @@ export default function Login() {
                         onPress={() => setPasswordVisible((value) => !value)}
                         style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
                       >
-                        <Ionicons
-                          name={passwordVisible ? "eye-off-outline" : "eye-outline"}
-                          size={21}
-                          color="#9FB0C3"
-                        />
+                        <Host>
+                          <Icon
+                            name={Icon.select({
+                              ios: passwordVisible ? "eye.slash.fill" : "eye.fill",
+                              android: passwordVisible ? visibilityOffXml : visibilityXml,
+                            })}
+                          />
+                        </Host>
                       </Pressable>
                     </View>
                   </View>

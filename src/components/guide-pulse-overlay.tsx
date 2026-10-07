@@ -1,6 +1,6 @@
 import { useTheme } from "@/hooks/use-theme";
 import { useEffect, useRef } from "react";
-import { Platform, Animated, Easing, StyleSheet, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 
 type Props = {
   active?: boolean;
@@ -33,13 +33,13 @@ export default function GuidePulseOverlay({
           toValue: 1,
           duration: 850,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
         Animated.timing(pulse, {
           toValue: 0,
           duration: 850,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: Platform.OS !== "web",
+          useNativeDriver: true,
         }),
       ]),
     );

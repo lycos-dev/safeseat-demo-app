@@ -19,7 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import * as Haptics from "expo-haptics";
-import * as LocalStore from "@/services/local-store";
+import * as SecureStore from "expo-secure-store";
 
 // Import doc, getDoc, collection, and getDocs
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
@@ -84,7 +84,7 @@ export default function Everyone() {
 	const loadAllUserData = useCallback(async () => {
 		setRefreshing(true);
 		try {
-			const cachedHealth = await LocalStore.getItemAsync("user_health_profile");
+			const cachedHealth = await SecureStore.getItemAsync("user_health_profile");
 			if (cachedHealth) {
 				const localData = JSON.parse(cachedHealth);
 				if (localData.name) setUserName(localData.name);
@@ -127,7 +127,7 @@ export default function Everyone() {
 						allergies: cloudData.allergies || "",
 					};
 
-					await LocalStore.setItemAsync(
+					await SecureStore.setItemAsync(
 						"user_health_profile",
 						JSON.stringify(combinedProfile),
 					);

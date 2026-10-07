@@ -14,7 +14,11 @@
       "backgroundColor": "#101322",
       "userInterfaceStyle": "dark",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "SafeSeat uses the local vehicle network to communicate with the Main Hub at 192.168.4.1.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
@@ -28,7 +32,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.ollymt.safeseatapp",
       "softwareKeyboardLayoutMode": "pan",
-      "backgroundColor": "#101322"
+      "backgroundColor": "#101322",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",

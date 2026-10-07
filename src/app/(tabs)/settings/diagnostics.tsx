@@ -6,7 +6,7 @@ import { useSafeSeatHub } from "@/hooks/safeseat-hub-context";
 import { SafeSeatStatusPayload, sensorHealthLabel } from "@/services/safeseat-hub";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import * as LocalStore from "@/services/local-store";
+import * as SecureStore from "expo-secure-store";
 import { doc, getDoc } from "firebase/firestore";
 import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -172,7 +172,7 @@ export default function Diagnostics() {
     }
 
     try {
-      await LocalStore.getItemAsync("is_logged_in");
+      await SecureStore.getItemAsync("is_logged_in");
       nextChecks.push({ label: "Protected session storage", value: "Available", state: "ready" });
     } catch {
       nextChecks.push({ label: "Protected session storage", value: "Needs attention", state: "attention" });

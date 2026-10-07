@@ -1,7 +1,7 @@
 {
   "name": "safeseat-app",
   "main": "expo-router/entry",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/roboto": "^0.4.3",
@@ -70,9 +70,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test scripts/regression-tests.cjs",
     "firebase:use": "firebase use safeseat-app",
-    "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes --project safeseat-app",
-    "web:clear": "expo start --web --clear",
-    "build": "expo export --platform web"
+    "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes --project safeseat-app"
   },
   "private": true
 }

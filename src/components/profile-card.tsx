@@ -1,6 +1,6 @@
 import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import * as SecureStore from "expo-secure-store";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "../services/local-storage.ts";
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -43,7 +43,7 @@ export default function ProfileCard({
     void (async () => {
       try {
         const cacheKey = profileId ? `profile_${profileId}` : "user_health_profile";
-        const cachedHealth = await SecureStore.getItemAsync(cacheKey);
+        const cachedHealth = await getLocalValue(cacheKey);
         if (!cachedHealth || cancelled) return;
 
         const parsed = JSON.parse(cachedHealth);

@@ -3,7 +3,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useDriverGuide } from "@/hooks/driver-guide-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import * as SecureStore from "expo-secure-store";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "../services/local-storage.ts";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
@@ -77,7 +77,7 @@ export default function AssignSeatModal({ visible, onClose, onSuccess, seat, ass
         let primaryName = currentUser.displayName;
         let primaryIcon = currentUser.photoURL ?? undefined;
 
-        const localHealthRaw = await SecureStore.getItemAsync("user_health_profile");
+        const localHealthRaw = await getLocalValue("user_health_profile");
         if (localHealthRaw) {
           const localHealth = JSON.parse(localHealthRaw);
           if (localHealth.name) primaryName = localHealth.name;

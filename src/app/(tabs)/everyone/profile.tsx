@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import * as SecureStore from "expo-secure-store";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "../../../services/local-storage.ts";
 import * as Haptics from "expo-haptics";
 import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { saveUserProfile } from "@/services/user-profile";
@@ -154,7 +154,7 @@ export default function Profile() {
 			const currentUser = auth.currentUser;
 			if (!currentUser) return;
 
-			const cachedHealth = await SecureStore.getItemAsync(cacheKey);
+			const cachedHealth = await getLocalValue(cacheKey);
 			if (cachedHealth) {
 				const localData = JSON.parse(cachedHealth);
 				const bdayParts = extractBirthdayParts(localData);
@@ -267,7 +267,7 @@ export default function Profile() {
 					setTempLbs("");
 				}
 
-				await SecureStore.setItemAsync(cacheKey, JSON.stringify(loadedCloudData));
+				await setLocalValue(cacheKey, JSON.stringify(loadedCloudData));
 			}
 		} catch (error) {
 			console.error("Error syncing cache with Firestore:", error);
@@ -475,7 +475,7 @@ export default function Profile() {
 				setUserPhone(updatedProfile.phone);
 			}
 			// Only cache confirmed writes. A cache failure must not report a cloud save as failed.
-			await SecureStore.setItemAsync(cacheKey, JSON.stringify(updatedProfile)).catch((error) => {
+			await setLocalValue(cacheKey, JSON.stringify(updatedProfile)).catch((error) => {
 				console.warn("Profile saved, but local cache could not be updated:", error);
 			});
 			originalDataRef.current = updatedProfile;
@@ -631,7 +631,7 @@ export default function Profile() {
 							const profileDocRef = doc(db, "users", currentUser.uid, "profiles", profileId as string);
 							await deleteDoc(profileDocRef);
 
-							await SecureStore.deleteItemAsync(cacheKey);
+							await deleteLocalValue(cacheKey);
 
 							Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 							router.back();

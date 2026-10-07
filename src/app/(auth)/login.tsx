@@ -7,7 +7,7 @@ import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
 import { Host, Icon } from "@expo/ui";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "../../services/local-storage.ts";
 import { StatusBar } from "expo-status-bar";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { useRef, useState } from "react";
@@ -51,7 +51,7 @@ export default function Login() {
       authenticated = true;
       await saveUserProfile(credential.user);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await SecureStore.setItemAsync("is_logged_in", "true");
+      await setLocalValue("is_logged_in", "true");
       router.replace("/(tabs)/home");
     } catch (error: any) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { createUserWithEmailAndPassword, updateProfile, type User } from "firebase/auth";
-import * as SecureStore from "expo-secure-store";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "../../services/local-storage.ts";
 import { useRef, useState } from "react";
 import { saveUserProfile } from "@/services/user-profile";
 import { accountErrorMessage } from "@/utils/account-errors";
@@ -93,7 +93,7 @@ export default function Signup() {
         name: cleanName,
         phone: cleanPhone,
       });
-      await SecureStore.setItemAsync("is_logged_in", "true");
+      await setLocalValue("is_logged_in", "true");
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/home");
     } catch (error: any) {

@@ -1,6 +1,6 @@
 import { Themes as themes } from "@/constants/theme";
 import { Stack, useRouter, useSegments } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "../services/local-storage.ts";
 import { useEffect, useState } from "react";
 import { auth } from "@/firebase";
 import { saveUserProfile } from "@/services/user-profile";
@@ -57,7 +57,7 @@ export default function RootLayout() {
 		async function checkAuthSession() {
 			try {
 				await auth.authStateReady();
-				const sessionFlag = await SecureStore.getItemAsync("is_logged_in");
+				const sessionFlag = await getLocalValue("is_logged_in");
 				if (active) setHasSession(sessionFlag === "true" && auth.currentUser !== null);
 			} catch (e) {
 				console.error("Failed to read auth token from local device:", e);

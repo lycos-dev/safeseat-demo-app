@@ -1,5 +1,5 @@
 // utils/securitySession.ts
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 
 const GRACE_PERIOD_MS = 15 * 60 * 1000; // 15 Minutes in milliseconds
 

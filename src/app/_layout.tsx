@@ -1,6 +1,6 @@
 import { Themes as themes } from "@/constants/theme";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import { useEffect, useState } from "react";
 import { auth } from "@/firebase";
 import { saveUserProfile } from "@/services/user-profile";

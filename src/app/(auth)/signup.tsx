@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { createUserWithEmailAndPassword, updateProfile, type User } from "firebase/auth";
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import { useRef, useState } from "react";
 import { saveUserProfile } from "@/services/user-profile";
 import { accountErrorMessage } from "@/utils/account-errors";

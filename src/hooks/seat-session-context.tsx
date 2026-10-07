@@ -436,7 +436,7 @@ export function SeatSessionProvider({ children }: { children: ReactNode }) {
       const cloud = snapshot.docs
         .filter((item) => !suppressedIds.has(item.id) && !expiredIds.has(item.id))
         .map((item) => normalizeSession(item.data()))
-        .filter((item): item is SeatSessionRecord => Boolean(item?.endedAt) && !isExpiredSession(item));
+        .filter((item): item is SeatSessionRecord => item !== null && Boolean(item.endedAt) && !isExpiredSession(item));
 
       const merged = new Map<string, SeatSessionRecord>();
       historyRef.current
@@ -584,7 +584,7 @@ export function SeatSessionProvider({ children }: { children: ReactNode }) {
     const ended: SeatSessionRecord = {
       ...current,
       endedAt,
-      events: [...current.events, { timestamp: endedAt, type: "end", title: "Session ended", detail: "This seat's session was saved while other active seats can continue monitoring." }].slice(-100),
+      events: [...current.events, { timestamp: endedAt, type: "end" as const, title: "Session ended", detail: "This seat's session was saved while other active seats can continue monitoring." }].slice(-100),
     };
     ended.summary = summarizeSession(ended);
 

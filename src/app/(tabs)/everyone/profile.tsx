@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../../../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import * as Haptics from "expo-haptics";
 import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { saveUserProfile } from "@/services/user-profile";

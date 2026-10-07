@@ -1,2 +1,3 @@
 // Native bridge for Expo UI SwiftUI modifiers.
-export { buttonBorderShape, buttonStyle, controlSize } from "@/components/ui-modifiers-bridge";
+// (Web builds resolve ui-modifiers-bridge.web.ts instead.)
+export { buttonBorderShape, buttonStyle, controlSize } from "@expo/ui/swift-ui/modifiers";

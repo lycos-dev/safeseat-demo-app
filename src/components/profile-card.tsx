@@ -1,6 +1,6 @@
 import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 

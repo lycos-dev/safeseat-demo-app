@@ -134,6 +134,7 @@ function authScreen(screen, firebaseAuth, saveUserProfile) {
     '@/constants/theme': { Spacing: {} }, '@/components/auth-background': 'Background',
     '@/components/button': 'Button', '@/components/text-input': 'TextInput',
     '../../firebase': { auth }, 'firebase/auth': firebaseAuth(auth),
+    '@/services/local-storage': { setLocalValue: async (...args) => { flags.push(args); }, getLocalValue: async () => null, deleteLocalValue: async () => {} },
     '@/services/user-profile': { saveUserProfile }, '@/utils/account-errors': errors,
   };
   const Component = load(`src/app/(auth)/${screen}.tsx`, mocks).default;

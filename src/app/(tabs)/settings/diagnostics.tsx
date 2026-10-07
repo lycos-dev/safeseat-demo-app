@@ -6,7 +6,7 @@ import { useSafeSeatHub } from "@/hooks/safeseat-hub-context";
 import { SafeSeatStatusPayload, sensorHealthLabel } from "@/services/safeseat-hub";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../../../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import { doc, getDoc } from "firebase/firestore";
 import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";

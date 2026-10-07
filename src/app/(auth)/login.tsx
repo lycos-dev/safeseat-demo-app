@@ -7,7 +7,7 @@ import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
 import { Host, Icon } from "@expo/ui";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import { StatusBar } from "expo-status-bar";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { useRef, useState } from "react";

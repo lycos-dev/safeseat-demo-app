@@ -19,7 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import * as Haptics from "expo-haptics";
-import { getLocalValue, setLocalValue, deleteLocalValue } from "../../../services/local-storage.ts";
+import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 
 // Import doc, getDoc, collection, and getDocs
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";

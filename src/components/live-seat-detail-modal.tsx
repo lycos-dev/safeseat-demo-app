@@ -187,7 +187,7 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   reading: { width: "48.5%", minHeight: 62, padding: 11, borderRadius: 14, borderWidth: 1, borderColor: themes.divider, backgroundColor: themes.backgroundElement, justifyContent: "center", gap: 4 },
   readingLabel: { color: themes.textMuted, fontSize: 10.5, lineHeight: 14, fontFamily: "Body-Medium" },
   readingValue: { color: themes.text, fontSize: 15, lineHeight: 19, fontFamily: "Body-Bold" },
-  hiddenCameraZones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
+  hiddenCameraZones: { ...StyleSheet.absoluteFill, flexDirection: "row" },
   hiddenCameraZone: { flex: 1, backgroundColor: "transparent" },
   fusionRow: { minHeight: 48, borderRadius: 14, backgroundColor: themes.primarySoft, borderWidth: 1, borderColor: themes.primaryBorder, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   fusionLabel: { color: themes.textSecondary, fontSize: 12, fontFamily: "Body-Medium" },

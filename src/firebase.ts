@@ -10,15 +10,28 @@ import {
 import { getFirestore } from "firebase/firestore";
 import { Platform } from "react-native";
 
+// Firebase web config comes from EXPO_PUBLIC_* variables (see .env.example).
+// Fallbacks keep the app from crashing at import time (auth/invalid-api-key)
+// when no .env file is present; real sign-in still requires the real values.
+const PROJECT_ID = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "safeseat-app";
+
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "missing-firebase-api-key",
+  authDomain:
+    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || `${PROJECT_ID}.firebaseapp.com`,
+  projectId: PROJECT_ID,
+  storageBucket:
+    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || `${PROJECT_ID}.firebasestorage.app`,
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
+
+if (!process.env.EXPO_PUBLIC_FIREBASE_API_KEY) {
+  console.warn(
+    "SafeSeat: EXPO_PUBLIC_FIREBASE_API_KEY is not set. Copy .env.example to .env and fill in your Firebase web config."
+  );
+}
 
 // 1. Safe instance initialization
 const app =

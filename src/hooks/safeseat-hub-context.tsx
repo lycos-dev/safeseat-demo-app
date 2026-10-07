@@ -123,6 +123,7 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
 
   const replayEmergencyCue = useCallback(() => {
     try {
+      emergencyPlayer.volume = 1;
       emergencyPlayer.seekTo(0);
       emergencyPlayer.play();
     } catch (error) {

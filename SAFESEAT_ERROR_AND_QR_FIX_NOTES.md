@@ -18,3 +18,10 @@ Only errors were fixed; no UI or behaviour was redesigned.
 - `npm run start:tunnel` -> Expo Go QR through ngrok; works on any network / when the LAN QR says server not found
 - `npm run start:clear`  -> same as start, with clean cache
 - `npm run dev-client`   -> original behaviour, only for a built development client
+
+## Emergency modal + sound update
+- Automated-SMS wording (title, countdown, "SMS" text, Contacts-sheet note) now appears only for the Driver seat (seat 1).
+  Passenger emergencies show a "Driver Alert" modal ("alert the driver now") with no SMS text, also in researcher test mode.
+- SMS sending logic unchanged: driver seat + real hub emergency + setting on + countdown elapsed.
+- `assets/sounds/emergency-alert.wav` replaced with a 3.2 s two-tone siren (about 16 dB louder, near full scale);
+  emergency playback volume is forced to 1.0. Repeat interval and Acknowledge behaviour unchanged.

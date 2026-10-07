@@ -318,10 +318,10 @@ export default function EmergencyModal({
   const isTestEmergency = !isRealEmergency;
   const driverOnlySmsEligible = isDriverSeat && isRealEmergency;
 
-  const escalationMessage = isTestEmergency
-    ? "Researcher Test Emergency is active. This is a local simulation and will not send an automated SMS. Hold the linked seat again to stop the test."
-    : !driverOnlySmsEligible
-      ? "Passenger emergency: alert the driver. SafeSeat sound/haptics and this emergency screen remain active, but automated SMS is not triggered."
+  const escalationMessage = !isDriverSeat
+    ? "Passenger emergency: alert the driver now. SafeSeat sound/haptics and this emergency screen stay active until the alert is acknowledged."
+    : isTestEmergency
+      ? "Researcher Test Emergency is active. This is a local simulation and will not send an automated SMS. Hold the linked seat again to stop the test."
       : !emergencyEscalation
         ? "Driver Emergency SMS is turned off in Settings."
         : windowElapsed
@@ -349,7 +349,7 @@ export default function EmergencyModal({
                 <Ionicons name="warning" color={themes.warnBttn} size={15} />
                 <Text style={styles.alertPillText}>EMERGENCY</Text>
               </View>
-              {driverOnlySmsEligible && emergencyEscalation ? <Text style={styles.timerValue}>{windowElapsed ? "00" : String(secondsLeft).padStart(2, "0")}s</Text> : <Text style={styles.passengerAlertText}>{isTestEmergency ? "TEST MODE" : driverOnlySmsEligible ? "SMS OFF" : "DRIVER ALERT"}</Text>}
+              {driverOnlySmsEligible && emergencyEscalation ? <Text style={styles.timerValue}>{windowElapsed ? "00" : String(secondsLeft).padStart(2, "0")}s</Text> : <Text style={styles.passengerAlertText}>{!isDriverSeat ? "DRIVER ALERT" : isTestEmergency ? "TEST MODE" : "SMS OFF"}</Text>}
             </View>
 
             {driverOnlySmsEligible && emergencyEscalation ? (
@@ -410,11 +410,11 @@ export default function EmergencyModal({
             <View style={styles.escalationBox}>
               <View style={styles.escalationHeader}>
                 <Ionicons
-                  name={driverOnlySmsEligible && emergencyEscalation ? "chatbubble-ellipses" : "information-circle"}
+                  name={isDriverSeat && emergencyEscalation ? "chatbubble-ellipses" : "information-circle"}
                   color={themes.primaryBttn}
                   size={18}
                 />
-                <Text style={styles.escalationTitle}>{driverOnlySmsEligible ? "Driver Emergency SMS" : "Driver Alert"}</Text>
+                <Text style={styles.escalationTitle}>{isDriverSeat ? "Driver Emergency SMS" : "Driver Alert"}</Text>
               </View>
               <Text style={styles.escalationText}>{escalationMessage}</Text>
             </View>
@@ -522,7 +522,9 @@ export default function EmergencyModal({
               <View style={{ flex: 1 }}>
                 <Text style={styles.contactTitle}>Emergency Contacts</Text>
                 <Text style={styles.contactSubtitle}>
-                  These are manual dialer shortcuts. Automated SMS escalation runs in the background when the driver emergency countdown elapses.
+                  {isDriverSeat
+                    ? "These are manual dialer shortcuts. Automated SMS escalation runs in the background when the driver emergency countdown elapses."
+                    : "These are manual dialer shortcuts."}
                 </Text>
               </View>
               <Pressable

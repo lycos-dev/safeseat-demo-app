@@ -15,6 +15,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { useCallback, useRef, useState } from "react";
 import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { confirmAction } from "../../../utils/platform-dialog";
 
 
 import ChangePasswordModal from "@/components/change-password-modal";
@@ -97,45 +98,52 @@ export default function Settings() {
     else setActiveSection("account");
   };
 
-  const clearSeatAssignments = () => {
+  const clearSeatAssignments = async () => {
     if (isLockedIn) return;
-    Alert.alert("Clear seat assignments?", "This clears the current seat setup. Saved profiles and emergency contacts stay intact.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Clear", style: "destructive", onPress: async () => {
-        try {
-          await AsyncStorage.multiRemove([SEAT_ASSIGNMENTS_KEY, SEAT_STATUSES_KEY, IS_LOCKED_IN_KEY, HARDWARE_SEAT_KEY, SEAT_CONSENTS_KEY]);
-          setIsLockedIn(false);
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("Cleared", "Seat assignments were reset.");
-        } catch {
-          Alert.alert("Could not clear", "Please try again.");
-        }
-      } },
-    ]);
+    const confirmed = await confirmAction({
+      title: "Clear seat assignments?",
+      message: "This clears the current seat setup. Saved profiles and emergency contacts stay intact.",
+      confirmText: "Clear",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await AsyncStorage.multiRemove([SEAT_ASSIGNMENTS_KEY, SEAT_STATUSES_KEY, IS_LOCKED_IN_KEY, HARDWARE_SEAT_KEY, SEAT_CONSENTS_KEY]);
+      setIsLockedIn(false);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Cleared", "Seat assignments were reset.");
+    } catch {
+      Alert.alert("Could not clear", "Please try again.");
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (isLockedIn) return;
-    Alert.alert("Log out?", "Local trip data on this device will be cleared.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: async () => {
-        try {
-          await endCurrentCloudSession().catch(() => undefined);
-          await signOut(auth);
-          await clearSession();
-          await AsyncStorage.multiRemove([SEAT_ASSIGNMENTS_KEY, SEAT_STATUSES_KEY, IS_LOCKED_IN_KEY, HARDWARE_SEAT_KEY, SEAT_CONSENTS_KEY, "app_emergency_contacts", "userPreferences"]);
-          await Promise.all([
-            deleteLocalValue("user_health_profile"),
-            deleteLocalValue("user_privacy_prefs"),
-            deleteLocalValue("user_local_app_prefs"),
-            deleteLocalValue("is_logged_in"),
-          ]);
-          router.replace("/(auth)/login");
-        } catch {
-          Alert.alert("Log out failed", "Please try again.");
-        }
-      } },
-    ]);
+    const confirmed = await confirmAction({
+      title: "Log out?",
+      message: "Local trip data on this device will be cleared.",
+      confirmText: "Log out",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await endCurrentCloudSession().catch(() => undefined);
+      await signOut(auth);
+      await clearSession();
+      await AsyncStorage.multiRemove([SEAT_ASSIGNMENTS_KEY, SEAT_STATUSES_KEY, IS_LOCKED_IN_KEY, HARDWARE_SEAT_KEY, SEAT_CONSENTS_KEY, "app_emergency_contacts", "userPreferences"]);
+      await Promise.all([
+        deleteLocalValue("user_health_profile"),
+        deleteLocalValue("user_privacy_prefs"),
+        deleteLocalValue("user_local_app_prefs"),
+        deleteLocalValue("is_logged_in"),
+      ]);
+      router.replace("/(auth)/login");
+    } catch (error) {
+      console.error("SafeSeat logout failed:", error);
+      Alert.alert("Log out failed", "Please try again.");
+    }
   };
 
   const shortcut = (label: string, key: SectionKey) => {

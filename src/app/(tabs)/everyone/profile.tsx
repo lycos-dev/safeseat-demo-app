@@ -1,4 +1,5 @@
 import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/constants/theme";
+import { confirmAction } from "../../../utils/platform-dialog";
 import { useTheme } from "@/hooks/use-theme";
 import { useUserPreferences } from "@/hooks/user-preferences-context";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -386,25 +387,19 @@ export default function Profile() {
 
 	useUnsavedChangesGuard(editMode && hasUnsavedChanges());
 
-	const handleCancelEdit = () => {
+	const handleCancelEdit = async () => {
 		if (hasUnsavedChanges()) {
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-			Alert.alert(
-				"Discard?",
-				"You have unsaved changes. Discard?",
-				[
-					{ text: "Cancel", style: "cancel" },
-					{
-						text: "Discard",
-						style: "destructive",
-						onPress: () => {
-							Keyboard.dismiss();
-							loadAllUserData();
-							setEditMode(false);
-						}
-					}
-				]
-			);
+			const discard = await confirmAction({
+				title: "Discard?",
+				message: "You have unsaved changes. Discard?",
+				confirmText: "Discard",
+				destructive: true,
+			});
+			if (!discard) return;
+			Keyboard.dismiss();
+			loadAllUserData();
+			setEditMode(false);
 		} else {
 			Keyboard.dismiss();
 			setEditMode(false);
@@ -614,38 +609,31 @@ export default function Profile() {
 	}
 
 	const handleDeleteProfile = () => {
-		Alert.alert(
-			`Delete ${userName}?`,
-			`Are you sure you want to delete ${userName}? This action can't be undone.`,
-			[
-				{ text: "Cancel", style: "cancel" },
-				{
-					text: "Delete",
-					style: "destructive",
-					onPress: async () => {
-						try {
-							setSaving(true);
-							const currentUser = auth.currentUser;
-							if (!currentUser || !isSubProfile) return;
+		void confirmAction({
+			title: `Delete ${userName}?`,
+			message: `Are you sure you want to delete ${userName}? This action can't be undone.`,
+			confirmText: "Delete",
+			destructive: true,
+		}).then(async (confirmed) => {
+			if (!confirmed) return;
+			try {
+				setSaving(true);
+				const currentUser = auth.currentUser;
+				if (!currentUser || !isSubProfile) return;
 
-							const profileDocRef = doc(db, "users", currentUser.uid, "profiles", profileId as string);
-							await deleteDoc(profileDocRef);
-
-							await deleteLocalValue(cacheKey);
-
-							Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-							router.back();
-						} catch (error) {
-							Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-							Alert.alert("Failed to delete profile");
-							console.error("Failed to delete profile: ", error);
-						} finally {
-							setSaving(false);
-						}
-					},
-				},
-			]
-		);
+				const profileDocRef = doc(db, "users", currentUser.uid, "profiles", profileId as string);
+				await deleteDoc(profileDocRef);
+				await deleteLocalValue(cacheKey);
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+				router.back();
+			} catch (error) {
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+				Alert.alert("Failed to delete profile");
+				console.error("Failed to delete profile: ", error);
+			} finally {
+				setSaving(false);
+			}
+		});
 	};
 
 	return (

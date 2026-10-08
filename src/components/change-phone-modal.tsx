@@ -1,4 +1,5 @@
 import ThemedHost from "@/components/themed-host";
+import { confirmAction } from "../utils/platform-dialog";
 // components/ChangePhoneModal.tsx
 import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -178,13 +179,16 @@ export default function ChangePhoneModal({ visible, onClose, onSuccess }: Props)
                                     variant={hasUnsavedChanges ? "warn" : "secondary"}
                                     label={hasUnsavedChanges ? "Discard" : "Cancel"}
                                     enabled={!isLoading}
-                                    onPress={() => {
+                                    onPress={async () => {
                                         if (hasUnsavedChanges) {
                                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                                            Alert.alert("Discard Changes?", "You have unsaved changes. Discard?", [
-                                                { text: "Cancel", style: "cancel" },
-                                                { text: "Discard", onPress: handleResetAndClose, style: "destructive" },
-                                            ]);
+                                            const discard = await confirmAction({
+                                                title: "Discard Changes?",
+                                                message: "You have unsaved changes. Discard?",
+                                                confirmText: "Discard",
+                                                destructive: true,
+                                            });
+                                            if (discard) handleResetAndClose();
                                         } else {
                                             handleResetAndClose();
                                         }

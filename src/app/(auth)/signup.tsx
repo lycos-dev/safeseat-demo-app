@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth } from "../../firebase";
+import { confirmAction } from "../../utils/platform-dialog";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -100,10 +101,14 @@ export default function Signup() {
       const pending = createdUserRef.current !== null;
       const message = accountErrorMessage(error, "Please try again.");
       if (error.code === "auth/email-already-in-use") {
-        Alert.alert("Account already exists", message, [
-          { text: "Cancel", style: "cancel" },
-          { text: "Log in", onPress: () => router.replace({ pathname: "/(auth)/login", params: { email: cleanEmail } }) },
-        ]);
+        const goToLogin = await confirmAction({
+          title: "Account already exists",
+          message,
+          confirmText: "Log in",
+        });
+        if (goToLogin) {
+          router.replace({ pathname: "/(auth)/login", params: { email: cleanEmail } });
+        }
       } else {
         Alert.alert(pending ? "Account created — setup incomplete" : "Sign-up failed",
           pending ? `Your account exists. Tap Finish setup to retry, or log in later. ${message}` : message);

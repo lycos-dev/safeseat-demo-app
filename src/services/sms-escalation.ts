@@ -1,7 +1,7 @@
 import { auth } from "../firebase";
 import type { EmergencyLocation } from "./emergency-location";
 
-const SMS_API_URL = process.env.EXPO_PUBLIC_SMS_API_URL ?? "";
+const SMS_API_URL = process.env.EXPO_PUBLIC_SMS_API_URL || "https://safeseat-sms-backend.vercel.app/api/send-sms";
 
 export type SmsEscalationResult =
   | {

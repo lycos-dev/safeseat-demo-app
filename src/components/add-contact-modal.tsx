@@ -17,6 +17,7 @@ import {
 import { Dropdown } from "react-native-element-dropdown";
 
 import { auth, db } from "../firebase";
+import { confirmAction } from "../utils/platform-dialog";
 import Button from "./button";
 import TextInput from "./text-input";
 import { normalizePhilippineMobileNumber, PH_MOBILE_VALIDATION_MESSAGE } from "@/utils/philippine-phone";
@@ -59,15 +60,19 @@ export default function AddContactModal({ visible, onClose, onSuccess }: Props) 
     onClose();
   };
 
-  const requestClose = () => {
+  const requestClose = async () => {
     if (!hasUnsavedChanges) {
       handleResetAndClose();
       return;
     }
-    Alert.alert("Discard this contact?", "Your entered information has not been saved yet.", [
-      { text: "Keep Editing", style: "cancel" },
-      { text: "Discard", style: "destructive", onPress: handleResetAndClose },
-    ]);
+    const discard = await confirmAction({
+      title: "Discard this contact?",
+      message: "Your entered information has not been saved yet.",
+      confirmText: "Discard",
+      cancelText: "Keep Editing",
+      destructive: true,
+    });
+    if (discard) handleResetAndClose();
   };
 
   const handleSave = async () => {

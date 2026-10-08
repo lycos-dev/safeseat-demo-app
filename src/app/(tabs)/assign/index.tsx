@@ -1,4 +1,5 @@
 import Button from "@/components/button";
+import { confirmAction } from "../../../utils/platform-dialog";
 import AssignCard from "@/components/assign-card";
 import AssignSeatModal from "@/components/assign-seat-modal";
 import SeatOptionsModal from "@/components/seat-options-modal";
@@ -316,14 +317,14 @@ export default function Assign() {
 
   const handleEndSession = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      "Manage passenger sessions",
-      "Sessions now end per seat so one passenger can get off while the other seats continue. Open Home to choose the specific seat to end.",
-      [
-        { text: "Keep Here", style: "cancel" },
-        { text: "Open Home", onPress: () => router.replace("/home") },
-      ],
-    );
+    void confirmAction({
+      title: "Manage passenger sessions",
+      message: "Sessions now end per seat so one passenger can get off while the other seats continue. Open Home to choose the specific seat to end.",
+      confirmText: "Open Home",
+      cancelText: "Keep Here",
+    }).then((openHome) => {
+      if (openHome) router.replace("/home");
+    });
   };
 
   const handleSeatAssigned = async (seatNumber: number, profile: Profile | null) => {
@@ -397,14 +398,13 @@ export default function Assign() {
     }
 
     if (activeSessions[seatNo]) {
-      Alert.alert(
-        "Seat session is active",
-        "End this passenger's session from Home before changing the person in this seat.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Open Home", onPress: () => router.replace("/home") },
-        ],
-      );
+      void confirmAction({
+        title: "Seat session is active",
+        message: "End this passenger's session from Home before changing the person in this seat.",
+        confirmText: "Open Home",
+      }).then((openHome) => {
+        if (openHome) router.replace("/home");
+      });
       return;
     }
 
@@ -607,30 +607,25 @@ export default function Assign() {
               if (!seatOptionsSeatNo) return;
               const seatNo = seatOptionsSeatNo;
               const person = getDisplayProfile(assignments[seatNo])?.name ?? "this person";
-              Alert.alert(
-                "Remove from seat?",
-                `${person} will be removed from ${getSeatLabel(seatNo)}. The saved profile will not be deleted.`,
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Remove",
-                    style: "destructive",
-                    onPress: () => {
-                      setSeatOptionsVisible(false);
-                      void (async () => {
-                        try {
-                          await handleSeatAssigned(seatNo, null);
-                          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        } catch (error) {
-                          console.error("Failed to remove seat assignment:", error);
-                          Alert.alert("Could not remove person", "Please try again.");
-                          void loadState();
-                        }
-                      })();
-                    },
-                  },
-                ],
-              );
+              void confirmAction({
+                title: "Remove from seat?",
+                message: `${person} will be removed from ${getSeatLabel(seatNo)}. The saved profile will not be deleted.`,
+                confirmText: "Remove",
+                destructive: true,
+              }).then((remove) => {
+                if (!remove) return;
+                setSeatOptionsVisible(false);
+                void (async () => {
+                  try {
+                    await handleSeatAssigned(seatNo, null);
+                    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  } catch (error) {
+                    console.error("Failed to remove seat assignment:", error);
+                    Alert.alert("Could not remove person", "Please try again.");
+                    void loadState();
+                  }
+                })();
+              });
             }}
           />
 

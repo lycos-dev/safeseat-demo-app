@@ -8,6 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { type ThemePalette } from "@/constants/theme";
 import { formatSessionDuration, useSeatSessions, type SeatSessionRecord } from "@/hooks/seat-session-context";
 import { useTheme } from "@/hooks/use-theme";
+import { confirmAction } from "../../../utils/platform-dialog";
 
 function dayLabel(timestamp: number) {
   const date = new Date(timestamp);
@@ -45,25 +46,20 @@ export default function SessionHistoryScreen() {
 
   const confirmClearHistory = useCallback(() => {
     if (clearing || history.length === 0) return;
-    Alert.alert(
-      "Clear session history?",
-      "This removes all completed session history from this device and your private SafeSeat cloud history. Active monitoring is not affected.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear history",
-          style: "destructive",
-          onPress: () => {
-            setClearing(true);
-            void clearSessionHistory()
-              .catch(() => {
-                Alert.alert("Could not finish clearing history", "The local history was cleared. SafeSeat will retry any pending cloud deletion when connectivity returns.");
-              })
-              .finally(() => setClearing(false));
-          },
-        },
-      ],
-    );
+    void confirmAction({
+      title: "Clear session history?",
+      message: "This removes all completed session history from this device and your private SafeSeat cloud history. Active monitoring is not affected.",
+      confirmText: "Clear history",
+      destructive: true,
+    }).then((confirmed) => {
+      if (!confirmed) return;
+      setClearing(true);
+      void clearSessionHistory()
+        .catch(() => {
+          Alert.alert("Could not finish clearing history", "The local history was cleared. SafeSeat will retry any pending cloud deletion when connectivity returns.");
+        })
+        .finally(() => setClearing(false));
+    });
   }, [clearSessionHistory, clearing, history.length]);
 
   const groups = useMemo(() => {

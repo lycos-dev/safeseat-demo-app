@@ -25,6 +25,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { confirmAction } from "../utils/platform-dialog";
 
 import { auth, db } from "../firebase";
 
@@ -334,18 +335,14 @@ export default function EmergencyModal({
   };
 
   const handleEmergencyServices = () => {
-    Alert.alert(
-      "Open emergency dialer?",
-      "SafeSeat does not place automated voice calls. This only opens your phone dialer with 911 so you can choose whether to call.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Open Dialer",
-          style: "destructive",
-          onPress: () => void handleCall("911"),
-        },
-      ],
-    );
+    void confirmAction({
+      title: "Open emergency dialer?",
+      message: "SafeSeat does not place automated voice calls. This only opens your phone dialer with 911 so you can choose whether to call.",
+      confirmText: "Open Dialer",
+      destructive: true,
+    }).then((openDialer) => {
+      if (openDialer) void handleCall("911");
+    });
   };
 
   const handleNearbyHospitals = async () => {

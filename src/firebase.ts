@@ -15,23 +15,24 @@ import { Platform } from "react-native";
 // when no .env file is present; real sign-in still requires the real values.
 const PROJECT_ID = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "safeseat-app";
 
+// Firebase Web configuration is public client configuration, not a server secret.
+// Environment variables remain the preferred override, while these known SafeSeat
+// values keep exported Web/Vercel builds functional even when Vercel has not been
+// given a local .env file.
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "missing-firebase-api-key",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyBqQgglCpUg1hFxt6lM2BI2f5YI3mewlDA",
   authDomain:
-    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || `${PROJECT_ID}.firebaseapp.com`,
+    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "safeseat-app.firebaseapp.com",
   projectId: PROJECT_ID,
   storageBucket:
-    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || `${PROJECT_ID}.firebasestorage.app`,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "safeseat-app.firebasestorage.app",
+  messagingSenderId:
+    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1088522406363",
+  appId:
+    process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:1088522406363:web:0f8fbe44e9fdb259497ffe",
+  measurementId:
+    process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-M33YE7MLY8",
 };
-
-if (!process.env.EXPO_PUBLIC_FIREBASE_API_KEY) {
-  console.warn(
-    "SafeSeat: EXPO_PUBLIC_FIREBASE_API_KEY is not set. Copy .env.example to .env and fill in your Firebase web config."
-  );
-}
 
 // 1. Safe instance initialization
 const app =

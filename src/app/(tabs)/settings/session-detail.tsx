@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { confirmAction } from "../../../utils/platform-dialog";
 
 import { type ThemePalette } from "@/constants/theme";
 import { formatSessionDuration, useSeatSessions, type SeatSessionSample } from "@/hooks/seat-session-context";
@@ -65,26 +66,21 @@ export default function SessionDetailScreen() {
 
   const confirmDeleteSession = () => {
     if (deleting) return;
-    Alert.alert(
-      "Delete this session?",
-      "This removes the completed session from this device and your private SafeSeat cloud history. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            setDeleting(true);
-            void deleteSession(session.id)
-              .then(() => router.back())
-              .catch(() => {
-                setDeleting(false);
-                Alert.alert("Could not finish deletion", "The local copy was removed. SafeSeat will retry any pending cloud deletion when connectivity returns.");
-              });
-          },
-        },
-      ],
-    );
+    void confirmAction({
+      title: "Delete this session?",
+      message: "This removes the completed session from this device and your private SafeSeat cloud history. This cannot be undone.",
+      confirmText: "Delete",
+      destructive: true,
+    }).then((confirmed) => {
+      if (!confirmed) return;
+      setDeleting(true);
+      void deleteSession(session.id)
+        .then(() => router.back())
+        .catch(() => {
+          setDeleting(false);
+          Alert.alert("Could not finish deletion", "The local copy was removed. SafeSeat will retry any pending cloud deletion when connectivity returns.");
+        });
+    });
   };
 
   return (

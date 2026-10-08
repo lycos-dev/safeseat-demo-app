@@ -1,4 +1,5 @@
 import ThemedHost from "@/components/themed-host";
+import { confirmAction } from "../../../utils/platform-dialog";
 import chatXml from "@expo/material-symbols/chat.xml";
 import callXml from "@expo/material-symbols/call.xml";
 import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/constants/theme";
@@ -80,25 +81,21 @@ export default function Contact() {
         setEditMode(false);
     };
 
-    const handleCancelEdit = () => {
+    const handleCancelEdit = async () => {
         if (!hasUnsavedChanges()) {
             // nothing to lose, no need to ask
             discardChanges();
             return;
         }
 
-        Alert.alert(
-            "Discard?",
-            "You have unsaved changes. Discard?",
-            [
-                { text: "Keep Editing", style: "cancel" },
-                {
-                    text: "Discard",
-                    style: "destructive",
-                    onPress: discardChanges,
-                },
-            ]
-        );
+        const discard = await confirmAction({
+            title: "Discard?",
+            message: "You have unsaved changes. Discard?",
+            confirmText: "Discard",
+            cancelText: "Keep Editing",
+            destructive: true,
+        });
+        if (discard) discardChanges();
     };
 
     const handleSaveChanges = async () => {
@@ -134,30 +131,25 @@ export default function Contact() {
     };
 
     const handleDeleteContact = () => {
-        Alert.alert(
-            `Delete ${userName}?`,
-            `Are you sure you want to delete ${userName}? This can't be undone.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        const currentUser = auth.currentUser;
-                        if (!currentUser || !id) return;
+        void confirmAction({
+            title: `Delete ${userName}?`,
+            message: `Are you sure you want to delete ${userName}? This can't be undone.`,
+            confirmText: "Delete",
+            destructive: true,
+        }).then(async (confirmed) => {
+            if (!confirmed) return;
+            const currentUser = auth.currentUser;
+            if (!currentUser || !id) return;
 
-                        setSaving(true);
-                        try {
-                            await deleteDoc(doc(db, "users", currentUser.uid, "emergencyContacts", id));
-                            router.back();
-                        } catch (error) {
-                            Alert.alert("Error", "Something went wrong deleting this contact. Please try again.");
-                            setSaving(false);
-                        }
-                    },
-                },
-            ]
-        );
+            setSaving(true);
+            try {
+                await deleteDoc(doc(db, "users", currentUser.uid, "emergencyContacts", id));
+                router.back();
+            } catch (error) {
+                Alert.alert("Error", "Something went wrong deleting this contact. Please try again.");
+                setSaving(false);
+            }
+        });
     };
 
     const handleCall = () => {

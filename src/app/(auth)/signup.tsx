@@ -13,6 +13,7 @@ import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local
 import { useRef, useState } from "react";
 import { saveUserProfile } from "@/services/user-profile";
 import { accountErrorMessage } from "@/utils/account-errors";
+import { normalizePhilippineMobileNumber, PH_MOBILE_VALIDATION_MESSAGE } from "@/utils/philippine-phone";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -25,14 +26,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth } from "../../firebase";
-
-const hasValidOptionalPhone = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return true;
-  if (!/^[+()\d\s.-]+$/.test(trimmed)) return false;
-  const digitCount = trimmed.replace(/\D/g, "").length;
-  return digitCount >= 7 && digitCount <= 15;
-};
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -47,22 +40,28 @@ export default function Signup() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const router = useRouter();
+  const normalizedPhoneForForm = normalizePhilippineMobileNumber(phone);
+  const phoneInputInvalid = phone.trim() !== "" && !normalizedPhoneForForm;
+  const canSubmit =
+    Boolean(name.trim() && email.trim() && normalizedPhoneForForm && password && confirmPassword) &&
+    password === confirmPassword &&
+    password.length >= 6;
 
   const handleSignUp = async () => {
     if (submittingRef.current) return;
     const cleanName = name.trim();
     const cleanEmail = email.toLowerCase().trim();
-    const cleanPhone = phone.trim();
+    const normalizedPhone = normalizePhilippineMobileNumber(phone);
 
-    if (!cleanName || !cleanEmail || !password || !confirmPassword) {
+    if (!cleanName || !cleanEmail || !phone.trim() || !password || !confirmPassword) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert("Missing fields", "Name, email, password, and confirm password are required.");
+      Alert.alert("Missing fields", "Name, email, phone number, password, and confirm password are required.");
       return;
     }
 
-    if (!hasValidOptionalPhone(cleanPhone)) {
+    if (!normalizedPhone) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert("Check phone number", "Enter a valid phone number, or leave the optional field blank.");
+      Alert.alert("Check phone number", PH_MOBILE_VALIDATION_MESSAGE);
       return;
     }
 
@@ -91,7 +90,7 @@ export default function Signup() {
       await updateProfile(user, { displayName: cleanName });
       await saveUserProfile(user, {
         name: cleanName,
-        phone: cleanPhone,
+        phone: normalizedPhone,
       });
       await setLocalValue("is_logged_in", "true");
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -185,7 +184,7 @@ export default function Signup() {
                   <View>
                     <View style={styles.labelRow}>
                       <Text style={styles.fieldLabel}>Phone number</Text>
-                      <Text style={styles.optionalLabel}>OPTIONAL</Text>
+                      <Text style={styles.requiredLabel}>REQUIRED</Text>
                     </View>
                     <TextInput
                       variant="regular"
@@ -195,7 +194,9 @@ export default function Signup() {
                       enabled={!isSubmitting}
                       onChangeText={setPhone}
                     />
-                    <Text style={styles.helper}>You can add or change this later in your profile.</Text>
+                    <Text style={[styles.helper, phoneInputInvalid && styles.helperError]}>
+                      {phoneInputInvalid ? PH_MOBILE_VALIDATION_MESSAGE : "Required. Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)."}
+                    </Text>
                   </View>
 
                   <View>
@@ -246,7 +247,7 @@ export default function Signup() {
                   onPress={() => {
                     if (!isSubmitting) void handleSignUp();
                   }}
-                  enabled={!isSubmitting}
+                  enabled={!isSubmitting && canSubmit}
                   fullWidth
                   loading={isSubmitting}
                 />
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 7,
   },
-  optionalLabel: {
+  requiredLabel: {
     color: "#7D8EA3",
     fontFamily: "Body-Bold",
     fontSize: 10,
@@ -342,6 +343,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 6,
   },
+  helperError: { color: "#FF8A8F" },
   passwordRow: { flexDirection: "row", gap: spacing.one, alignItems: "stretch" },
   passwordInput: { flex: 1 },
   eyeButton: {

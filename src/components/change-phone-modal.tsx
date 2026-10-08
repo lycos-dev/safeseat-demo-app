@@ -22,6 +22,7 @@ import { EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { auth } from "../firebase";
 import { saveUserProfile } from "@/services/user-profile";
 import { accountErrorMessage } from "@/utils/account-errors";
+import { normalizePhilippineMobileNumber, PH_MOBILE_VALIDATION_MESSAGE } from "@/utils/philippine-phone";
 import Button from "./button";
 import TextInput from "./text-input";
 
@@ -32,13 +33,6 @@ type Props = {
     visible: boolean;
     onClose: () => void;
     onSuccess?: () => void;
-};
-
-// Validates international/standard phone numbers (E.164 compliant: 7 to 15 digits)
-const isValidPhoneNumber = (phone: string): boolean => {
-    if (!/^[+()\d\s.-]+$/.test(phone.trim())) return false;
-    const cleaned = phone.replace(/\D/g, "");
-    return cleaned.length >= 7 && cleaned.length <= 15;
 };
 
 export default function ChangePhoneModal({ visible, onClose, onSuccess }: Props) {
@@ -57,7 +51,8 @@ export default function ChangePhoneModal({ visible, onClose, onSuccess }: Props)
     }, [visible]);
 
     const hasUnsavedChanges = phone !== "" || password !== "";
-    const isFormInvalid = !isValidPhoneNumber(phone) || password.trim() === "";
+    const normalizedPhone = normalizePhilippineMobileNumber(phone);
+    const isFormInvalid = !normalizedPhone || password.trim() === "";
 
     const handleResetAndClose = () => {
         setPhone("");
@@ -75,9 +70,10 @@ export default function ChangePhoneModal({ visible, onClose, onSuccess }: Props)
             return;
         }
 
-        if (!isValidPhoneNumber(phone)) {
+        const normalizedPhone = normalizePhilippineMobileNumber(phone);
+        if (!normalizedPhone) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert("Invalid Phone Number", "Please enter a valid phone number.");
+            Alert.alert("Invalid Phone Number", PH_MOBILE_VALIDATION_MESSAGE);
             return;
         }
 
@@ -91,7 +87,7 @@ export default function ChangePhoneModal({ visible, onClose, onSuccess }: Props)
 
             // 2. Update the phone field directly in the Firestore user document
             await saveUserProfile(currentUser, {
-                phone: phone.trim(),
+                phone: normalizedPhone,
             });
             handleResetAndClose();
             if (onSuccess) onSuccess();
@@ -134,7 +130,7 @@ export default function ChangePhoneModal({ visible, onClose, onSuccess }: Props)
                                 <TextInput
                                     type="phone"
                                     variant="regular"
-                                    placeholder="New Phone Number"
+                                    placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                                     enabled={!isLoading}
                                     value={phone}
                                     onChangeText={setPhone}

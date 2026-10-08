@@ -18,7 +18,8 @@
         "NSLocalNetworkUsageDescription": "SafeSeat uses the local vehicle network to communicate with the Main Hub at 192.168.4.1.",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
-        }
+        },
+        "NSLocationWhenInUseUsageDescription": "SafeSeat uses this phone's location during a confirmed driver emergency so registered emergency contacts can receive the current GPS coordinates."
       }
     },
     "android": {
@@ -57,7 +58,13 @@
       "expo-status-bar",
       "expo-web-browser",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow SafeSeat to use this phone's location during a confirmed driver emergency so registered emergency contacts can receive the current GPS coordinates."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

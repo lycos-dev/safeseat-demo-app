@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 // ---------------------------------------------------------------------------
-// Firebase Admin initialization (runs once per cold start)
+// Firebase Admin initialization
 // ---------------------------------------------------------------------------
 function initFirebaseAdmin() {
   if (getApps().length > 0) return;
@@ -19,30 +19,12 @@ function initFirebaseAdmin() {
 }
 
 // ---------------------------------------------------------------------------
-// Duplicate-event protection (in-memory, survives across invocations on warm)
-// ---------------------------------------------------------------------------
-const recentEvents = new Map<string, number>();
-const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-
-function isDuplicateEvent(eventId: string): boolean {
-  const now = Date.now();
-
-  for (const [key, timestamp] of recentEvents) {
-    if (now - timestamp > DEDUP_WINDOW_MS) recentEvents.delete(key);
-  }
-
-  if (recentEvents.has(eventId)) return true;
-  recentEvents.set(eventId, now);
-  return false;
-}
-
-// ---------------------------------------------------------------------------
 // CORS
 // ---------------------------------------------------------------------------
 const ALLOWED_ORIGINS = [
   "https://safeseat-app.vercel.app",
-  "http://localhost:8081", // Expo dev
-  "http://localhost:19006", // Expo web
+  "http://localhost:8081",
+  "http://localhost:19006",
 ];
 
 function setCorsHeaders(req: VercelRequest, res: VercelResponse) {
@@ -56,105 +38,113 @@ function setCorsHeaders(req: VercelRequest, res: VercelResponse) {
 }
 
 // ---------------------------------------------------------------------------
-// SMS message template
+// Validation / normalization
 // ---------------------------------------------------------------------------
-function buildSmsBody(
-  userName: string,
-  seatLabel: string,
-  timestamp: string,
-): string {
-  return (
-    `SafeSeat EMERGENCY ALERT\n\n` +
-    `${userName} in the ${seatLabel} may need immediate help.\n\n` +
-    `Time: ${timestamp}\n\n` +
-    `This is an automated alert from SafeSeat. Please check on them immediately. ` +
-    `If this is a medical emergency, call 911.`
-  );
+function normalizePhilippineMobileNumber(rawPhone: unknown): string | null {
+  if (typeof rawPhone !== "string") return null;
+  const trimmed = rawPhone.trim();
+  if (!trimmed || !/^[+()\d\s.-]+$/.test(trimmed)) return null;
+
+  let digits = trimmed.replace(/\D/g, "");
+  if (/^09\d{9}$/.test(digits)) digits = `63${digits.slice(1)}`;
+  else if (/^9\d{9}$/.test(digits)) digits = `63${digits}`;
+
+  if (!/^639\d{9}$/.test(digits)) return null;
+  return `+${digits}`;
+}
+
+type ValidLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  timestamp?: string;
+};
+
+function parseLocation(raw: unknown): ValidLocation | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const latitude = Number(value.latitude);
+  const longitude = Number(value.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+
+  const accuracy = Number(value.accuracy);
+  const timestamp = typeof value.timestamp === "string" ? value.timestamp : undefined;
+  return {
+    latitude,
+    longitude,
+    ...(Number.isFinite(accuracy) && accuracy >= 0 ? { accuracy } : {}),
+    ...(timestamp ? { timestamp } : {}),
+  };
+}
+
+function validEventId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9:_-]{8,180}$/.test(value);
+}
+
+function validSessionId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9:_-]{6,180}$/.test(value);
 }
 
 // ---------------------------------------------------------------------------
-// Phone normalization
+// Exact SafeSeat Emergency message
 // ---------------------------------------------------------------------------
-function normalizeSmsDestination(rawPhone: string): string {
-  let phone = rawPhone.trim().replace(/[\s()\-.]/g, "");
-
-  // Infobip examples use international digits without a leading `+`.
-  if (phone.startsWith("+")) phone = phone.slice(1);
-
-  // Philippine local mobile format: 09XXXXXXXXX -> 639XXXXXXXXX
-  if (/^09\d{9}$/.test(phone)) {
-    phone = `63${phone.slice(1)}`;
+function buildSmsBody(driverName: string, location: ValidLocation | null): string {
+  const name = driverName.trim() || "the driver";
+  if (location) {
+    return `SafeSeat Emergency Alert: Possible emergency involving ${name}. Check on them now. GPS: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}. Paste coordinates into Maps.`;
   }
-
-  // Convenience for a PH mobile number saved as 9XXXXXXXXX.
-  if (/^9\d{9}$/.test(phone)) {
-    phone = `63${phone}`;
-  }
-
-  // E.164 allows up to 15 digits. We send digits only to Infobip.
-  if (!/^[1-9]\d{7,14}$/.test(phone)) {
-    throw new Error(
-      "Emergency contact phone number is invalid. Use an international number such as +639171234567.",
-    );
-  }
-
-  return phone;
+  return `SafeSeat Emergency Alert: Possible emergency involving ${name}. Check on them now. Current GPS location is unavailable.`;
 }
 
 // ---------------------------------------------------------------------------
-// Infobip SMS sending (REST API)
+// TextBee sending. API key/device details are server-side only.
 // ---------------------------------------------------------------------------
-async function sendInfobipSms(
-  to: string,
-  text: string,
+async function sendTextBeeSms(
+  recipients: string[],
+  message: string,
 ): Promise<{ messageId: string }> {
-  const apiKey = process.env.INFOBIP_API_KEY;
-  const configuredBaseUrl = process.env.INFOBIP_API_BASE_URL ?? "api.infobip.com";
-  const baseUrl = configuredBaseUrl
-    .replace(/^https?:\/\//i, "")
-    .replace(/\/$/, "");
-  const sender = process.env.INFOBIP_SENDER ?? "ServiceSMS";
+  const apiKey = process.env.TEXTBEE_API_KEY;
+  if (!apiKey) throw new Error("TEXTBEE_API_KEY environment variable is missing");
 
-  if (!apiKey) {
-    throw new Error("INFOBIP_API_KEY environment variable is missing");
-  }
-
-  const destination = normalizeSmsDestination(to);
-
-  const response = await fetch(`https://${baseUrl}/sms/2/text/advanced`, {
+  const deviceId = process.env.TEXTBEE_DEVICE_ID?.trim();
+  const response = await fetch("https://api.textbee.dev/api/v1/gateway/send-sms", {
     method: "POST",
     headers: {
-      Authorization: `App ${apiKey}`,
       "Content-Type": "application/json",
-      Accept: "application/json",
+      "x-api-key": apiKey,
     },
     body: JSON.stringify({
-      messages: [
-        {
-          from: sender,
-          destinations: [{ to: destination }],
-          text,
-        },
-      ],
+      recipients,
+      message,
+      ...(deviceId ? { deviceId } : {}),
     }),
   });
 
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => "unknown");
-    throw new Error(`Infobip API error ${response.status}: ${errorBody}`);
+  const bodyText = await response.text();
+  let data: any = {};
+  try {
+    data = bodyText ? JSON.parse(bodyText) : {};
+  } catch {
+    data = {};
   }
 
-  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`TextBee API error ${response.status}`);
+  }
 
-  // Extract the message ID from Infobip response
-  const messageId: string =
-    data?.messages?.[0]?.messageId ?? "unknown";
+  const messageId =
+    data?.smsBatchId ??
+    data?.data?.smsBatchId ??
+    data?.id ??
+    data?.data?._id ??
+    "accepted";
 
-  return { messageId };
+  return { messageId: String(messageId) };
 }
 
 // ---------------------------------------------------------------------------
-// Main handler
+// Handler
 // ---------------------------------------------------------------------------
 export default async function handler(
   req: VercelRequest,
@@ -166,7 +156,6 @@ export default async function handler(
     res.status(204).end();
     return;
   }
-
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
@@ -177,133 +166,210 @@ export default async function handler(
   try {
     initFirebaseAdmin();
 
-    // ---- 1. Verify authentication ----
+    // 1) Authenticated SafeSeat user only.
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
       res.status(401).json({ error: "Missing or invalid authorization header" });
       return;
     }
 
-    const idToken = authHeader.slice(7);
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await getAuth().verifyIdToken(authHeader.slice(7));
     } catch {
       res.status(401).json({ error: "Invalid or expired auth token" });
       return;
     }
-
     const uid = decodedToken.uid;
 
-    // ---- 2. Validate request body ----
-    const { seatNumber, seatLabel, occupantName, eventId, timestamp } =
-      req.body as {
-        seatNumber?: number;
-        seatLabel?: string;
-        occupantName?: string;
-        eventId?: string;
-        timestamp?: string;
-      };
+    // 2) Client supplies event/session identity + phone GPS only. It never
+    // supplies recipient numbers or the driver's authoritative display name.
+    const { seatNumber, sessionId, eventId, location } = req.body as {
+      seatNumber?: number;
+      sessionId?: string;
+      eventId?: string;
+      location?: unknown;
+      timestamp?: string;
+    };
 
     if (seatNumber !== 1) {
-      res
-        .status(400)
-        .json({ error: "SMS escalation is only available for the driver seat" });
+      res.status(400).json({ error: "SMS escalation is only available for the driver seat" });
+      return;
+    }
+    if (!validSessionId(sessionId) || !validEventId(eventId)) {
+      res.status(400).json({ error: "Missing or invalid Emergency event/session identity" });
       return;
     }
 
-    if (!eventId || !timestamp) {
-      res.status(400).json({ error: "Missing required fields: eventId, timestamp" });
-      return;
-    }
-
-    // ---- 3. Duplicate-event protection ----
-    if (isDuplicateEvent(eventId)) {
-      res.status(200).json({ ok: true, skipped: "duplicate_event" });
-      return;
-    }
-
-    // ---- 4. Look up primary emergency contact ----
     const db = getFirestore();
-    const contactsSnap = await db
-      .collection("users")
-      .doc(uid)
-      .collection("emergencyContacts")
-      .orderBy("hierarchy", "asc")
-      .limit(5)
-      .get();
+
+    // 3) Server-side Emergency verification. Do not trust the mobile client to
+    // declare an arbitrary event as an Emergency.
+    const sessionRef = db.collection("monitoring_sessions").doc(sessionId);
+    const sessionSnap = await sessionRef.get();
+    if (!sessionSnap.exists) {
+      res.status(409).json({ error: "Driver monitoring session is not available for Emergency verification" });
+      return;
+    }
+
+    const session = sessionSnap.data() ?? {};
+    const sessionSeat = String(session.seat ?? "").trim().toLowerCase();
+    const fusionState = String(session.fusionState ?? "").trim().toUpperCase();
+    if (
+      session.ownerUid !== uid ||
+      session.active !== true ||
+      sessionSeat !== "driver" ||
+      fusionState !== "EMERGENCY"
+    ) {
+      res.status(409).json({ error: "Emergency is no longer active or does not belong to the current driver" });
+      return;
+    }
+
+    // 4) Server chooses the driver's identity and recipients from Firebase.
+    const [userSnap, contactsSnap] = await Promise.all([
+      db.collection("users").doc(uid).get(),
+      db.collection("users").doc(uid).collection("emergencyContacts").get(),
+    ]);
+
+    const driverName =
+      (typeof userSnap.data()?.name === "string" && userSnap.data()?.name.trim()) ||
+      (typeof decodedToken.name === "string" && decodedToken.name.trim()) ||
+      "the driver";
 
     if (contactsSnap.empty) {
-      res.status(200).json({ ok: true, skipped: "no_contacts" });
+      res.status(200).json({ ok: true, skipped: "no_contacts", smsStatus: "SKIPPED" });
       return;
     }
 
-    const primaryContact = contactsSnap.docs.find((contactDoc) => {
-      const data = contactDoc.data();
-      return typeof data.hierarchy === "number" && data.hierarchy > 0 && data.phone;
+    const contacts = contactsSnap.docs
+      .map((contactDoc) => {
+        const data = contactDoc.data();
+        const phone = normalizePhilippineMobileNumber(data.phone);
+        const hierarchy = Number(data.hierarchy);
+        return {
+          name: typeof data.name === "string" && data.name.trim() ? data.name.trim() : "Emergency Contact",
+          phone,
+          hierarchy: Number.isFinite(hierarchy) && hierarchy > 0 ? hierarchy : 999,
+        };
+      })
+      .filter((contact): contact is { name: string; phone: string; hierarchy: number } => Boolean(contact.phone))
+      .sort((a, b) => a.hierarchy - b.hierarchy);
+
+    // One SMS request can contain all recipients. De-duplicate identical numbers.
+    const recipientMap = new Map<string, string>();
+    for (const contact of contacts) {
+      if (!recipientMap.has(contact.phone)) recipientMap.set(contact.phone, contact.name);
+    }
+    const recipients = [...recipientMap.keys()];
+    const recipientNames = [...recipientMap.values()];
+
+    if (recipients.length === 0) {
+      res.status(200).json({ ok: true, skipped: "no_valid_contacts", smsStatus: "SKIPPED" });
+      return;
+    }
+
+    const gps = parseLocation(location);
+    const message = buildSmsBody(driverName, gps);
+
+    // 5) Durable event-level idempotency. A function restart or repeated
+    // Firebase render cannot create a second send attempt for the same event.
+    const eventRef = db.collection("smsEmergencyEvents").doc(eventId);
+    let claimed = false;
+    await db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(eventRef);
+      if (existing.exists) return;
+      transaction.create(eventRef, {
+        uid,
+        sessionId,
+        eventId,
+        seatNumber,
+        smsStatus: testMode ? "TEST_PENDING" : "SENDING",
+        recipientCount: recipients.length,
+        gpsIncluded: Boolean(gps),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      claimed = true;
     });
 
-    if (!primaryContact) {
-      res.status(200).json({ ok: true, skipped: "no_phone_number" });
+    if (!claimed) {
+      const existing = await eventRef.get();
+      const existingStatus = String(existing.data()?.smsStatus ?? "").toUpperCase();
+      res.status(200).json({
+        ok: true,
+        skipped: existingStatus === "SENDING" || existingStatus === "TEST_PENDING" ? "event_in_progress" : "duplicate_event",
+        smsStatus: existingStatus || "DUPLICATE",
+      });
       return;
     }
 
-    const contactData = primaryContact.data();
-    const contactPhone = contactData.phone as string;
-    const contactName = contactData.name as string;
-
-    const displayName = occupantName || "The driver";
-    const displaySeat = seatLabel || "driver seat";
-    const smsBody = buildSmsBody(displayName, displaySeat, timestamp);
-
-    // ---- 5. TEST MODE: log but don't send ----
+    // 6) Safe server test mode.
     if (testMode) {
-      console.log("========== TEST MODE — SMS NOT SENT ==========");
-      console.log(`Would send to: ${contactName}`);
-      console.log(`Message:\n${smsBody}`);
-      console.log(`Event ID: ${eventId}`);
-      console.log(`User UID: ${uid}`);
-      console.log("===============================================");
+      console.log("SafeSeat SMS TEST_MODE event", {
+        eventId,
+        uid,
+        recipientCount: recipients.length,
+        gpsIncluded: Boolean(gps),
+      });
+      await eventRef.update({
+        smsStatus: "TEST_SKIPPED",
+        updatedAt: new Date().toISOString(),
+      });
+      res.status(200).json({
+        ok: true,
+        skipped: "test_mode",
+        smsStatus: "TEST_SKIPPED",
+      });
+      return;
+    }
+
+    // 7) Live TextBee send to ALL registered valid Emergency Contacts.
+    try {
+      const result = await sendTextBeeSms(recipients, message);
+      const now = new Date().toISOString();
+
+      await eventRef.update({
+        smsStatus: "SENT",
+        smsSentAt: now,
+        textBeeMessageId: result.messageId,
+        updatedAt: now,
+      });
+
+      // Keep existing Admin incident visibility in sync. No phone numbers/GPS
+      // coordinates are written to the incident or audit record.
+      const incidentRef = db.collection("incidents").doc(`${sessionId}-EMERGENCY`);
+      await incidentRef.set({ smsEscalated: true, updatedAt: now }, { merge: true }).catch(() => undefined);
+
+      await db.collection("smsLog").add({
+        uid,
+        sessionId,
+        eventId,
+        seatNumber,
+        recipientCount: recipients.length,
+        textBeeMessageId: result.messageId,
+        gpsIncluded: Boolean(gps),
+        timestamp: now,
+      }).catch((error) => console.warn("SafeSeat SMS audit log write failed:", error));
 
       res.status(200).json({
         ok: true,
-        testMode: true,
-        skipped: "test_mode",
-        wouldSendTo: contactName,
-        messagePreview: smsBody,
+        messageId: result.messageId,
+        sentTo: recipientNames,
+        smsStatus: "SENT",
       });
-      return;
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : "TextBee send failed";
+      await eventRef.update({
+        smsStatus: "FAILED",
+        failureReason: messageText.slice(0, 500),
+        updatedAt: new Date().toISOString(),
+      }).catch(() => undefined);
+      console.error("SafeSeat TextBee send failed:", error);
+      res.status(502).json({ error: "Emergency SMS gateway failed", smsStatus: "FAILED" });
     }
-
-    // ---- 5b. LIVE MODE: send SMS via Infobip ----
-    const result = await sendInfobipSms(contactPhone, smsBody);
-
-    console.log(`SMS sent to ${contactName} for user ${uid}: ${result.messageId}`);
-
-    // ---- 6. Log the sent SMS in Firestore for audit trail (no phone number) ----
-    try {
-      await db.collection("smsLog").add({
-        uid,
-        eventId,
-        seatNumber,
-        occupantName: displayName,
-        contactName,
-        infobipMessageId: result.messageId,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (logError) {
-      console.warn("Failed to log SMS to Firestore:", logError);
-    }
-
-    res.status(200).json({
-      ok: true,
-      messageId: result.messageId,
-      sentTo: contactName,
-    });
   } catch (error) {
     console.error("SMS escalation error:", error);
-    const message =
-      error instanceof Error ? error.message : "Internal server error";
+    const message = error instanceof Error ? error.message : "Internal server error";
     res.status(500).json({ error: message });
   }
 }

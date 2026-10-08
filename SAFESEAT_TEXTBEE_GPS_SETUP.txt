@@ -1,0 +1,54 @@
+SafeSeat — Final Emergency SMS + GPS Setup
+==========================================
+
+This update keeps the SafeSeat Runtime/fusion unchanged. The phone captures GPS
+when a real driver EMERGENCY begins, waits for the existing Emergency countdown,
+then asks the secure Vercel backend to send one TextBee SMS cycle if the Emergency
+is still active.
+
+APP SETUP
+---------
+1. Keep the existing app .env value:
+   EXPO_PUBLIC_SMS_API_URL=https://safeseat-app.vercel.app/api/send-sms
+
+2. Install the Expo SDK 57 location package after applying these changed files:
+   npx expo install expo-location
+
+3. Restart Expo with a clean cache after installation:
+   npx expo start --tunnel -c
+
+VERCEL SMS BACKEND (server project)
+-----------------------------------
+The Vercel project whose Root Directory is "server" needs these Environment Variables:
+
+- FIREBASE_SERVICE_ACCOUNT = existing Firebase Admin service-account JSON
+- TEXTBEE_API_KEY = your TextBee server-side API key
+- TEXTBEE_DEVICE_ID = optional; leave unset if the intended Android TextBee phone is the account default device
+- TEST_MODE = true for the first backend test; change to false for a live SMS test
+
+After changing Vercel environment variables, redeploy the server project.
+
+DO NOT put TEXTBEE_API_KEY in the Expo/mobile .env, any EXPO_PUBLIC_* variable,
+Firestore, AsyncStorage, or React Native source code.
+
+FIREBASE CONSOLE
+----------------
+No manual Firestore schema/collection creation is required for this update.
+The backend reuses:
+- users/{uid}
+- users/{uid}/emergencyContacts
+- monitoring_sessions/{sessionId}
+- incidents/{sessionId}-EMERGENCY
+
+The Firebase Admin backend automatically creates/updates its SMS audit/idempotency
+collections when needed. No client Firestore Rules change is required for those
+server-side Admin writes.
+
+DEFENSE NETWORK CHECK
+---------------------
+The iPhone must be able to reach BOTH:
+- the local Main Hub at http://192.168.4.1 over SafeSeat Wi-Fi, and
+- the Vercel/TextBee Internet backend (normally via cellular data if the SafeSeat
+  Wi-Fi has no Internet).
+
+Test this exact simultaneous connection before the final defense.

@@ -30,6 +30,7 @@ import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Host, Icon } from "@expo/ui";
+import { normalizePhilippineMobileNumber, PH_MOBILE_VALIDATION_MESSAGE } from "@/utils/philippine-phone";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -108,15 +109,22 @@ export default function Contact() {
             return;
         }
 
+        const normalizedPhone = normalizePhilippineMobileNumber(userPhone);
+        if (!normalizedPhone) {
+            Alert.alert("Invalid Phone Number", PH_MOBILE_VALIDATION_MESSAGE);
+            return;
+        }
+
         Keyboard.dismiss();
         setSaving(true);
         try {
             await updateDoc(doc(db, "users", currentUser.uid, "emergencyContacts", id), {
                 name: userName,
-                phone: userPhone,
+                phone: normalizedPhone,
                 hierarchy: userHierarchy,
             });
-            originalData.current = { name: userName, phone: userPhone, hierarchy: userHierarchy };
+            setUserPhone(normalizedPhone);
+            originalData.current = { name: userName, phone: normalizedPhone, hierarchy: userHierarchy };
             setEditMode(false);
         } catch (error) {
             Alert.alert("Error", "Something went wrong saving your changes. Please try again.");
@@ -297,10 +305,10 @@ export default function Contact() {
                                         {editMode ? (
                                             <View style={{ flex: 1 }}>
                                                 <TextInput
-                                                    type="text"
+                                                    type="phone"
                                                     value={userPhone}
                                                     onChangeText={setUserPhone}
-                                                    placeholder="Phone Number"
+                                                    placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                                                     enabled={!saving}
                                                 />
                                             </View>

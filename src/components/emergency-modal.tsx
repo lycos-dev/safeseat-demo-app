@@ -4,6 +4,8 @@ import { useTheme } from "@/hooks/use-theme";
 import { useUserPreferences } from "@/hooks/user-preferences-context";
 import { useSeatSessions } from "@/hooks/seat-session-context";
 import { sendEmergencySms } from "@/services/sms-escalation";
+import { captureEmergencyLocation, type EmergencyLocation } from "@/services/emergency-location";
+import { getOrCreateEmergencyEventId } from "@/services/emergency-event";
 import { markCurrentIncidentSmsEscalated } from "@/services/admin-cloud-sync";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -93,7 +95,12 @@ export default function EmergencyModal({
   const [windowElapsed, setWindowElapsed] = useState(false);
   const [holdingCancel, setHoldingCancel] = useState(false);
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const smsSentRef = useRef(false);
+  const smsAttemptedRef = useRef(false);
+  const emergencyEventIdRef = useRef<string | null>(null);
+  const emergencyLocationRef = useRef<EmergencyLocation | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "capturing" | "ready" | "unavailable">("idle");
+  const [smsStatus, setSmsStatus] = useState<"idle" | "sending" | "sent" | "skipped" | "failed">("idle");
+  const [smsStatusDetail, setSmsStatusDetail] = useState("");
 
   const clearHoldTimer = () => {
     if (holdTimerRef.current) {
@@ -112,8 +119,43 @@ export default function EmergencyModal({
     setSecondsLeft(escalationWindowSeconds);
     setWindowElapsed(false);
     setHoldingCancel(false);
-    smsSentRef.current = false;
+    smsAttemptedRef.current = false;
+    emergencyEventIdRef.current = null;
+    emergencyLocationRef.current = null;
+    setLocationStatus("idle");
+    setSmsStatus("idle");
+    setSmsStatusDetail("");
   }, [visible, seat, escalationWindowSeconds]);
+
+  // Prepare the event id and a fresh GPS fix immediately when a real driver
+  // emergency begins. GPS failure never blocks SMS escalation.
+  useEffect(() => {
+    if (!visible || !isDriverSeat || !emergencyEscalation || !isRealEmergency) return;
+
+    const sessionId = activeSessions[seat]?.id;
+    if (sessionId && !emergencyEventIdRef.current) {
+      void getOrCreateEmergencyEventId(sessionId)
+        .then((eventId) => {
+          emergencyEventIdRef.current = eventId;
+        })
+        .catch((error) => {
+          console.warn("SafeSeat could not prepare emergency event id:", error);
+        });
+    }
+
+    if (locationStatus === "idle") {
+      setLocationStatus("capturing");
+      void captureEmergencyLocation()
+        .then((location) => {
+          emergencyLocationRef.current = location;
+          setLocationStatus(location ? "ready" : "unavailable");
+        })
+        .catch(() => {
+          emergencyLocationRef.current = null;
+          setLocationStatus("unavailable");
+        });
+    }
+  }, [visible, isDriverSeat, emergencyEscalation, isRealEmergency, activeSessions, seat, locationStatus]);
 
   useEffect(() => {
     if (!visible || windowElapsed || !isDriverSeat || !emergencyEscalation || !isRealEmergency) return;
@@ -135,39 +177,80 @@ export default function EmergencyModal({
 
   useEffect(() => () => clearHoldTimer(), []);
 
-  // ---- SMS escalation: fire once when the countdown elapses for driver seat ----
+  // ---- SMS escalation: one server-verified cycle per real Emergency event ----
   useEffect(() => {
     if (!visible || !windowElapsed || !isDriverSeat || !emergencyEscalation || !isRealEmergency) return;
-    if (smsSentRef.current) return;
-    smsSentRef.current = true;
+    if (smsAttemptedRef.current) return;
+
+    const sessionId = activeSessions[seat]?.id;
+    if (!sessionId) {
+      smsAttemptedRef.current = true;
+      setSmsStatus("failed");
+      setSmsStatusDetail("No active driver monitoring session was available for SMS verification.");
+      return;
+    }
+
+    smsAttemptedRef.current = true;
+    setSmsStatus("sending");
+    setSmsStatusDetail("");
 
     void (async () => {
       try {
+        const eventId =
+          emergencyEventIdRef.current ?? (await getOrCreateEmergencyEventId(sessionId));
+        emergencyEventIdRef.current = eventId;
+
+        // The GPS request started at the beginning of the countdown. At zero,
+        // use whatever fresh fix is ready; do not delay emergency messaging
+        // just because location is unavailable.
         const result = await sendEmergencySms({
           seatNumber: seat,
-          occupantName: isAccountOwner ? "the account owner" : name,
+          sessionId,
+          eventId,
+          location: emergencyLocationRef.current,
         });
+
         if (result.ok) {
           if (result.skipped) {
+            setSmsStatus("skipped");
+            const skippedMessages: Record<string, string> = {
+              duplicate_event: "This Emergency event has already completed its SMS cycle.",
+              event_in_progress: "This Emergency SMS cycle is already being processed.",
+              no_contacts: "No registered Emergency Contacts are available.",
+              no_valid_contacts: "No Emergency Contact has a valid Philippine mobile number.",
+              test_mode: "Server test mode is enabled; no real SMS was sent.",
+            };
+            setSmsStatusDetail(skippedMessages[result.skipped] ?? "Emergency SMS was not sent.");
             console.log(`SafeSeat SMS skipped: ${result.skipped}`);
           } else {
-            console.log(`SafeSeat SMS sent to ${result.sentTo} (ID: ${result.messageId})`);
-            void markCurrentIncidentSmsEscalated(activeSessions[seat]?.id);
+            setSmsStatus("sent");
+            const recipientCount = result.sentTo?.length ?? 0;
+            setSmsStatusDetail(
+              recipientCount > 0
+                ? `Emergency SMS sent to ${recipientCount} registered contact${recipientCount === 1 ? "" : "s"}.`
+                : "Emergency SMS request completed.",
+            );
+            console.log(`SafeSeat SMS sent (ID: ${result.messageId})`);
+            void markCurrentIncidentSmsEscalated(sessionId);
           }
         } else {
+          setSmsStatus("failed");
+          setSmsStatusDetail("Emergency SMS could not be sent. Use the contact shortcuts or phone dialer.");
           console.warn("SafeSeat SMS failed:", result.error);
         }
       } catch (error) {
+        setSmsStatus("failed");
+        setSmsStatusDetail("Emergency SMS could not be sent. Use the contact shortcuts or phone dialer.");
         console.error("SafeSeat SMS escalation error:", error);
       }
     })();
-  }, [visible, windowElapsed, isDriverSeat, emergencyEscalation, isRealEmergency, seat, isAccountOwner, name, activeSessions]);
+  }, [visible, windowElapsed, isDriverSeat, emergencyEscalation, isRealEmergency, seat, activeSessions]);
 
-  // Reset the SMS sent flag when the modal closes
+  // The attempt flag is scoped to this rendered Emergency cycle. The stable
+  // event id is persisted separately and is cleared only after Fusion exits
+  // EMERGENCY, protecting against remount/reload duplicates.
   useEffect(() => {
-    if (!visible) {
-      smsSentRef.current = false;
-    }
+    if (!visible) smsAttemptedRef.current = false;
   }, [visible]);
 
   const fetchEmergencyContacts = async () => {
@@ -324,9 +407,23 @@ export default function EmergencyModal({
       ? "Researcher Test Emergency is active. This is a local simulation and will not send an automated SMS. Hold the linked seat again to stop the test."
       : !emergencyEscalation
         ? "Driver Emergency SMS is turned off in Settings."
-        : windowElapsed
-          ? "Driver-seat escalation window elapsed. The automated SMS request has been sent to the primary emergency contact."
-          : "If the Driver-seat emergency remains confirmed when this timer reaches zero, an automated SMS request will be sent to the primary emergency contact.";
+        : smsStatus === "sending"
+          ? "Emergency is still active. SafeSeat is sending the automated SMS to the driver's registered Emergency Contacts."
+          : smsStatus === "sent"
+            ? smsStatusDetail || "Emergency SMS sent to the driver's registered Emergency Contacts."
+            : smsStatus === "failed" || smsStatus === "skipped"
+              ? smsStatusDetail
+              : windowElapsed
+                ? "The escalation window has elapsed. SafeSeat is preparing the Emergency SMS request."
+                : "If the Driver-seat emergency remains confirmed when this timer reaches zero, SafeSeat will notify all registered Emergency Contacts.";
+
+  const gpsStatusMessage = locationStatus === "ready"
+    ? "Phone GPS ready for the Emergency SMS."
+    : locationStatus === "capturing"
+      ? "Getting the phone's current GPS location..."
+      : locationStatus === "unavailable"
+        ? "Current GPS is unavailable. Emergency SMS will still be sent."
+        : "GPS will be prepared for a confirmed driver Emergency.";
 
   return (
     <>
@@ -417,6 +514,9 @@ export default function EmergencyModal({
                 <Text style={styles.escalationTitle}>{isDriverSeat ? "Driver Emergency SMS" : "Driver Alert"}</Text>
               </View>
               <Text style={styles.escalationText}>{escalationMessage}</Text>
+              {driverOnlySmsEligible && emergencyEscalation ? (
+                <Text style={styles.locationText}>{gpsStatusMessage}</Text>
+              ) : null}
             </View>
 
             <View style={styles.quickActions}>

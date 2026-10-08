@@ -13,6 +13,7 @@ import {
 
 import { auth, db } from "../firebase";
 import type { SafeSeatStatusPayload } from "../services/safeseat-hub";
+import { ensureEmergencyLocationPermission } from "../services/emergency-location";
 import { useSafeSeatHub } from "./safeseat-hub-context";
 
 const IS_LOCKED_IN_KEY = "isLockedIn";
@@ -546,6 +547,12 @@ export function SeatSessionProvider({ children }: { children: ReactNode }) {
   }, [refreshHistoryFromCloud]);
 
   const startSeatSessions = useCallback(async ({ assignments, hardwareSeatNo, consents }: StartSessionInput) => {
+    // Ask for foreground GPS permission as monitoring begins, not during an
+    // emergency. Denial/failure never blocks the monitoring session.
+    if (assignments[1]?.isAccountOwner) {
+      await ensureEmergencyLocationPermission().catch(() => false);
+    }
+
     const now = Date.now();
     const next: Record<number, SeatSessionRecord> = { ...activeRef.current };
     const nextRecent = { ...recentRef.current };

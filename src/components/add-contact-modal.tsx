@@ -19,6 +19,7 @@ import { Dropdown } from "react-native-element-dropdown";
 import { auth, db } from "../firebase";
 import Button from "./button";
 import TextInput from "./text-input";
+import { normalizePhilippineMobileNumber, PH_MOBILE_VALIDATION_MESSAGE } from "@/utils/philippine-phone";
 
 const CONTACT_ORDER = [
   { label: "1st contact", value: 1 },
@@ -47,7 +48,9 @@ export default function AddContactModal({ visible, onClose, onSuccess }: Props) 
   }, [visible]);
 
   const hasUnsavedChanges = name.trim() !== "" || phone.trim() !== "" || priority !== 0;
-  const isFormInvalid = name.trim() === "" || phone.trim() === "";
+  const normalizedPhone = normalizePhilippineMobileNumber(phone);
+  const phoneHasError = phone.trim() !== "" && !normalizedPhone;
+  const isFormInvalid = name.trim() === "" || !normalizedPhone;
 
   const handleResetAndClose = () => {
     setName("");
@@ -68,7 +71,13 @@ export default function AddContactModal({ visible, onClose, onSuccess }: Props) 
   };
 
   const handleSave = async () => {
-    if (isFormInvalid || isLoading) return;
+    if (isFormInvalid || isLoading) {
+      if (phoneHasError) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        Alert.alert("Invalid Phone Number", PH_MOBILE_VALIDATION_MESSAGE);
+      }
+      return;
+    }
     const currentUser = auth.currentUser;
     if (!currentUser) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -80,7 +89,7 @@ export default function AddContactModal({ visible, onClose, onSuccess }: Props) 
     try {
       await addDoc(collection(db, "users", currentUser.uid, "emergencyContacts"), {
         name: name.trim(),
-        phone: phone.trim(),
+        phone: normalizedPhone,
         hierarchy: Number(priority),
         createdAt: new Date().toISOString(),
       });
@@ -126,7 +135,10 @@ export default function AddContactModal({ visible, onClose, onSuccess }: Props) 
                   <Text style={styles.fieldLabel}>Phone number</Text>
                   <Text style={styles.requiredTag}>REQUIRED</Text>
                 </View>
-                <TextInput type="phone" variant="regular" placeholder="Phone number" enabled={!isLoading} value={phone} onChangeText={setPhone} />
+                <TextInput type="phone" variant="regular" placeholder="09XXXXXXXXX or +639XXXXXXXXX" enabled={!isLoading} value={phone} onChangeText={setPhone} />
+                <Text style={[styles.fieldHint, phoneHasError && { color: themes.warnBttn }]}>
+                  {phoneHasError ? PH_MOBILE_VALIDATION_MESSAGE : "Philippine mobile number used for Emergency SMS."}
+                </Text>
               </View>
 
               <View style={styles.fieldGroup}>

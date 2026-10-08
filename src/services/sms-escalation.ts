@@ -1,31 +1,31 @@
 import { auth } from "../firebase";
+import type { EmergencyLocation } from "./emergency-location";
 
 const SMS_API_URL = process.env.EXPO_PUBLIC_SMS_API_URL ?? "";
 
-const SEAT_LABELS: Record<number, string> = {
-  1: "driver seat",
-  2: "front passenger seat",
-  3: "rear left seat",
-  4: "rear center seat",
-  5: "rear right seat",
-};
-
 export type SmsEscalationResult =
-  | { ok: true; messageId?: string; sentTo?: string; skipped?: string }
+  | {
+      ok: true;
+      messageId?: string;
+      sentTo?: string[];
+      skipped?: string;
+      smsStatus?: string;
+    }
   | { ok: false; error: string };
 
 /**
- * Send an emergency SMS via the SafeSeat backend.
+ * Request one emergency SMS cycle from the SafeSeat server.
  *
- * Safety guards (call these BEFORE invoking this function):
- * - seatNumber MUST be 1 (driver seat only)
- * - The emergency MUST come from a real Main Hub fusion state, NOT a UAT simulation
- * - The user MUST have `emergencyEscalation` enabled in preferences
- * - The 20/25/30-second countdown MUST have elapsed
+ * The client never submits recipient numbers and never holds the TextBee key.
+ * The backend verifies the authenticated driver's active Firebase emergency,
+ * loads that driver's registered Emergency Contacts, and applies server-side
+ * duplicate protection for eventId.
  */
 export async function sendEmergencySms(params: {
   seatNumber: number;
-  occupantName: string;
+  sessionId: string;
+  eventId: string;
+  location: EmergencyLocation | null;
 }): Promise<SmsEscalationResult> {
   if (!SMS_API_URL) {
     console.warn("SafeSeat SMS API URL is not configured");
@@ -39,9 +39,6 @@ export async function sendEmergencySms(params: {
 
   try {
     const idToken = await currentUser.getIdToken();
-
-    const eventId = `sms-${params.seatNumber}-${Date.now()}`;
-
     const response = await fetch(SMS_API_URL, {
       method: "POST",
       headers: {
@@ -50,14 +47,14 @@ export async function sendEmergencySms(params: {
       },
       body: JSON.stringify({
         seatNumber: params.seatNumber,
-        seatLabel: SEAT_LABELS[params.seatNumber] ?? `seat ${params.seatNumber}`,
-        occupantName: params.occupantName,
-        eventId,
+        sessionId: params.sessionId,
+        eventId: params.eventId,
+        location: params.location,
         timestamp: new Date().toISOString(),
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       console.warn("SafeSeat SMS API error:", data);
@@ -67,8 +64,9 @@ export async function sendEmergencySms(params: {
     return {
       ok: true,
       messageId: data.messageId,
-      sentTo: data.sentTo,
+      sentTo: Array.isArray(data.sentTo) ? data.sentTo : undefined,
       skipped: data.skipped,
+      smsStatus: data.smsStatus,
     };
   } catch (error) {
     console.error("SafeSeat SMS escalation failed:", error);

@@ -16,6 +16,7 @@ import {
   type CloudSyncProfile,
 } from "../services/admin-cloud-sync";
 import { useSafeSeatHub } from "./safeseat-hub-context";
+import { clearEmergencyEventId } from "../services/emergency-event";
 import { useSeatSessions } from "./seat-session-context";
 import { useUserPreferences } from "./user-preferences-context";
 
@@ -61,6 +62,14 @@ export function SafeSeatCloudSyncProvider({ children }: { children: ReactNode })
     setAuthUid(user?.uid ?? null);
     if (!user) setVehicleProvisioned(false);
   }), []);
+
+  useEffect(() => {
+    if (rawSeatState === "emergency") return;
+    const driverSessionId = activeSessions[1]?.id;
+    if (driverSessionId) {
+      void clearEmergencyEventId(driverSessionId).catch(() => undefined);
+    }
+  }, [rawSeatState, activeSessions]);
 
   useEffect(() => {
     if (!authUid) return;

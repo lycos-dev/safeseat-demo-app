@@ -1,0 +1,31 @@
+SafeSeat Expo Go connection fix
+
+Reason:
+The project still had expo-dev-client installed. With that package present, a plain
+"npx expo start --tunnel -c" can start in Development Build mode and produce a
+custom development-client QR/deep link instead of an Expo Go QR. On an iPhone
+without the custom development build installed, that can appear as a page/server
+that cannot be opened.
+
+Changes:
+1. Removed expo-dev-client from package.json.
+2. Kept expo-location for the Emergency GPS workflow.
+3. All normal start scripts explicitly force Expo Go.
+4. Default start uses LAN because the phone and laptop are on the same Wi-Fi.
+5. Added start:tunnel:clear as a fallback that still forces Expo Go.
+
+Apply:
+- Copy package.json into the SafeSeat project root.
+- Recommended: run APPLY_EXPO_GO_FIX_AND_START.cmd once from the project root.
+
+Manual equivalent:
+  npm uninstall expo-dev-client
+  npx expo install expo-location
+  npx expo start --go --lan -c
+
+If LAN is unavailable, use:
+  npx expo start --go --tunnel -c
+
+IMPORTANT:
+Do not run only "npx expo start --tunnel -c" while expo-dev-client is still
+installed in node_modules. The --go flag removes the ambiguity.

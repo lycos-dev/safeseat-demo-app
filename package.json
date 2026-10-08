@@ -21,7 +21,6 @@
     "expo-audio": "~57.0.5",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.18",
-    "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.3",
@@ -30,6 +29,7 @@
     "expo-image-picker": "~57.0.18",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.10",
+    "expo-location": "~57.0.20",
     "expo-router": "~57.0.21",
     "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.9",
@@ -52,18 +52,16 @@
     "react-native-screens": "~4.26.0",
     "react-native-tab-view": "^4.3.2",
     "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.10.1",
-    "expo-location": "~57.0.20"
+    "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start --go",
+    "start": "expo start --go --lan",
     "start:tunnel": "expo start --go --tunnel",
-    "start:clear": "expo start --go --clear",
-    "dev-client": "expo start --dev-client",
+    "start:clear": "expo start --go --lan --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -74,7 +72,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test scripts/regression-tests.cjs",
     "firebase:use": "firebase use safeseat-app",
-    "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes --project safeseat-app"
+    "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes --project safeseat-app",
+    "start:tunnel:clear": "expo start --go --tunnel --clear"
   },
   "private": true
 }

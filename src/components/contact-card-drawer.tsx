@@ -5,8 +5,8 @@ import callXml from "@expo/material-symbols/call.xml";
 // components/PasswordVerifyModal.tsx
 import { type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { BottomSheet, Button, Column, Host, Icon, Row, Spacer, Text } from "@expo/ui";
-import { buttonBorderShape, buttonStyle, controlSize } from "@expo/ui/swift-ui/modifiers";
+import { BottomSheet, Button, Column, Host, Icon, Row, Spacer, Text } from "@/components/ui-bridge";
+import { buttonBorderShape, buttonStyle, controlSize } from "@/components/ui-modifiers-bridge";
 
 import * as Haptics from "expo-haptics"
 import { useEffect, useRef, useState } from "react";

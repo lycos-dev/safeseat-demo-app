@@ -3,7 +3,7 @@ import checkXml from "@expo/material-symbols/check.xml";
 import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { View, Pressable, Text, Image, StyleSheet } from "react-native"
-import { Host, Icon } from "@expo/ui"
+import { Host, Icon } from "@/components/ui-bridge"
 
 type Profile = {
     id: string;

@@ -14,7 +14,7 @@ import { endCloudSessionForSeat, endCurrentCloudSession } from "@/services/admin
 import { useDriverGuide } from "@/hooks/driver-guide-context";
 import { formatSessionDuration, useSeatSessions } from "@/hooks/seat-session-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";

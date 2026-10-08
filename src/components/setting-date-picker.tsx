@@ -1,6 +1,6 @@
 import ThemedHost from "@/components/themed-host";
 import { useTheme } from "@/hooks/use-theme";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { DatePicker } from "@expo/ui/swift-ui";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useEffect, useRef, useState } from "react";

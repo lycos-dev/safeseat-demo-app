@@ -4,7 +4,7 @@ import closeXml from "@expo/material-symbols/close.xml";
 import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useBanner } from "@/hooks/banner-context";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import {
     Linking,
     Platform,

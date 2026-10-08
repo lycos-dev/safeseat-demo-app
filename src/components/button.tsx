@@ -42,14 +42,21 @@ export default function Button({ variant = "primary", label, enabled = true, ful
         style,
       ]}
     >
-      {loading ? <ActivityIndicator color={spinnerColor} /> : children ?? (
-        <Text style={[
-          styles.baseText,
-          variant === "primary" && styles.primaryText,
-          variant === "secondary" && styles.secondaryText,
-          variant === "warn" && styles.warnText,
-          variant === "tertiary" && styles.tertiaryText,
-        ]}>{label}</Text>
+      {loading ? (
+        <ActivityIndicator color={spinnerColor} />
+      ) : (
+        <>
+          {children}
+          {label ? (
+            <Text style={[
+              styles.baseText,
+              variant === "primary" && styles.primaryText,
+              variant === "secondary" && styles.secondaryText,
+              variant === "warn" && styles.warnText,
+              variant === "tertiary" && styles.tertiaryText,
+            ]}>{label}</Text>
+          ) : null}
+        </>
       )}
     </Pressable>
   );

@@ -3,7 +3,7 @@ import ThemedHost from "@/components/themed-host";
 import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import * as Haptics from "expo-haptics";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { useEffect, useRef, useState } from "react";
 import {
     Alert,

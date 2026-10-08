@@ -7,7 +7,7 @@ import addXml from "@expo/material-symbols/add.xml";
 import { type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import GuidePulseOverlay from "./guide-pulse-overlay";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 type Profile = {

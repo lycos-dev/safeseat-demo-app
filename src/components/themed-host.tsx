@@ -1,5 +1,5 @@
 import { useTheme } from "@/hooks/use-theme";
-import { Host } from "@expo/ui";
+import { Host } from "@/components/ui-bridge";
 import type { ComponentProps, ReactNode } from "react";
 
 type HostProps = ComponentProps<typeof Host> & { children?: ReactNode };

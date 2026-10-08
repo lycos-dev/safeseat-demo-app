@@ -4,7 +4,7 @@ import TextInput from "@/components/text-input";
 import { Spacing as spacing } from "@/constants/theme";
 import visibilityXml from "@expo/material-symbols/visibility.xml";
 import visibilityOffXml from "@expo/material-symbols/visibility_off.xml";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";

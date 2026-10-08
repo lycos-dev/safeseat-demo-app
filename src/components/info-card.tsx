@@ -1,6 +1,6 @@
 import { type ThemePalette, Spacing as spacing, FontSize as fontsize } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import {
     StyleSheet,
     Text,

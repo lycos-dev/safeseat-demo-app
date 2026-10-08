@@ -1,7 +1,7 @@
 import ThemedHost from "@/components/themed-host";
 import { Spacing as spacing, FontSize as fontsize } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { Host, Icon, Picker } from "@expo/ui";
+import { Host, Icon, Picker } from "@/components/ui-bridge";
 // 1. Import the native scroll view wrapper designed specifically for Expo UI
 // Static import instead of a runtime import() — Icon.select needs an actual
 // value, not a Promise, or the Android icon silently breaks.

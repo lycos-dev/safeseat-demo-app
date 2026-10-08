@@ -2,7 +2,7 @@ import ThemedHost from "@/components/themed-host";
 import circleXml from "@expo/material-symbols/circle.xml";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { type ThemePalette, Spacing as spacing, FontSize as fontsize } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 

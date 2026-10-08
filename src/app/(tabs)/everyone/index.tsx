@@ -1,7 +1,7 @@
 import addXml from "@expo/material-symbols/add.xml";
 import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
 	Dimensions,
@@ -35,7 +35,7 @@ import {
 	buttonBorderShape,
 	buttonStyle,
 	controlSize,
-} from "@expo/ui/swift-ui/modifiers";
+} from "@/components/ui-modifiers-bridge";
 import TextInput from "@/components/text-input";
 import Button from "@/components/button";
 

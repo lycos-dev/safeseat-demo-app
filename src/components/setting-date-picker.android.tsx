@@ -1,7 +1,7 @@
 import ThemedHost from "@/components/themed-host";
 // @/components/setting-date-picker.android.tsx
 import { useTheme } from "@/hooks/use-theme";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { useState, useMemo, useEffect } from "react";
 import {
     Modal,

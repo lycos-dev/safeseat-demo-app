@@ -5,7 +5,7 @@ import sirenXml from "@expo/material-symbols/siren.xml";
 import circleXml from "@expo/material-symbols/circle.xml";
 import { Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from "react-native";
 

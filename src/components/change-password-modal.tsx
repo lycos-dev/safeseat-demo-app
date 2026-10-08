@@ -4,7 +4,7 @@ import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/c
 import { useTheme } from "@/hooks/use-theme";
 import * as Haptics from "expo-haptics";
 import { useEffect, useState } from "react";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import {
     Alert,
     Keyboard,

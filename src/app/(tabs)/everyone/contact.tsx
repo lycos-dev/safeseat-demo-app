@@ -29,7 +29,7 @@ import FormScrollView from "@/components/form-scroll-view";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import { normalizePhilippineMobileNumber, PH_MOBILE_VALIDATION_MESSAGE } from "@/utils/philippine-phone";
 
 const { width: screenWidth } = Dimensions.get("window");

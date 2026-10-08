@@ -4,7 +4,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { withLayoutContext, router, usePathname } from "expo-router";
 import { createMaterialTopTabNavigator } from "expo-router/js-top-tabs";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Icon, Host } from "@expo/ui";
+import { Icon, Host } from "@/components/ui-bridge";
 
 import * as Haptics from "expo-haptics";
 import Banner from "@/components/banner";

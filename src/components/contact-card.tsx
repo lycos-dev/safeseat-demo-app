@@ -2,7 +2,7 @@ import ThemedHost from "@/components/themed-host";
 import callXml from "@expo/material-symbols/call.xml";
 import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { Host, Icon } from "@expo/ui";
+import { Host, Icon } from "@/components/ui-bridge";
 import * as Haptics from "expo-haptics";
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -40,30 +40,29 @@ export default function ContactCard({ name, phone, order, onPress }: ContactCard
   };
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${name}, ${meta.label}, ${phone}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-    >
-      <View style={[styles.orderBadge, { borderColor: `${meta.color}66`, backgroundColor: `${meta.color}12` }]}> 
-        <Text style={[styles.orderNumber, { color: meta.color }]}>{meta.number}</Text>
-      </View>
+    <View style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${name}, ${meta.label}, ${phone}`}
+        onPress={onPress}
+        style={({ pressed }) => [styles.cardMainAction, pressed && styles.cardPressed]}
+      >
+        <View style={[styles.orderBadge, { borderColor: `${meta.color}66`, backgroundColor: `${meta.color}12` }]}> 
+          <Text style={[styles.orderNumber, { color: meta.color }]}>{meta.number}</Text>
+        </View>
 
-      <View style={styles.copy}>
-        <Text style={[styles.orderLabel, { color: meta.color }]}>{meta.label}</Text>
-        <Text style={styles.name} numberOfLines={1}>{name}</Text>
-        <Text style={styles.phone} numberOfLines={1}>{phone}</Text>
-        <Text style={styles.hint}>Tap to view or edit</Text>
-      </View>
+        <View style={styles.copy}>
+          <Text style={[styles.orderLabel, { color: meta.color }]}>{meta.label}</Text>
+          <Text style={styles.name} numberOfLines={1}>{name}</Text>
+          <Text style={styles.phone} numberOfLines={1}>{phone}</Text>
+          <Text style={styles.hint}>Tap to view or edit</Text>
+        </View>
+      </Pressable>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Call ${name}`}
-        onPress={(event) => {
-          event.stopPropagation();
-          void handleMakeCall();
-        }}
+        onPress={() => void handleMakeCall()}
         style={({ pressed }) => [styles.callButton, pressed && styles.callPressed]}
       >
         <ThemedHost matchContents>
@@ -71,7 +70,7 @@ export default function ContactCard({ name, phone, order, onPress }: ContactCard
         </ThemedHost>
         <Text style={styles.callText}>CALL</Text>
       </Pressable>
-    </Pressable>
+    </View>
   );
 }
 
@@ -80,15 +79,21 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     width: "100%",
     minHeight: 88,
     flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.one,
-    paddingHorizontal: spacing.one + 4,
-    paddingVertical: spacing.one,
+    alignItems: "stretch",
     borderRadius: 20,
     backgroundColor: themes.backgroundElement,
     borderWidth: 1,
     borderColor: themes.divider,
     overflow: "hidden",
+  },
+  cardMainAction: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.one,
+    paddingHorizontal: spacing.one + 4,
+    paddingVertical: spacing.one,
   },
   cardPressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
   orderBadge: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
@@ -98,7 +103,7 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   name: { color: themes.text, fontSize: fontsize.body, fontFamily: "Body-Bold", marginTop: 2 },
   phone: { color: themes.textSecondary, fontSize: 10.5, fontFamily: "Body-Medium", marginTop: 2 },
   hint: { color: themes.textMuted, fontSize: 8.5, fontFamily: "Body-Regular", marginTop: 2 },
-  callButton: { width: 56, minHeight: 58, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 2, backgroundColor: themes.primaryBttn },
+  callButton: { width: 64, minHeight: 58, margin: spacing.one, marginLeft: 0, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 2, backgroundColor: themes.primaryBttn },
   callPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
   callText: { color: themes.primaryBttnText, fontSize: 7.5, letterSpacing: 0.55, fontFamily: "Body-Bold" },
 });

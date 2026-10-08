@@ -56,12 +56,14 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "cross-env": "^10.1.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start --go --lan",
-    "start:tunnel": "expo start --go --tunnel",
+    "start:tunnel": "cross-env EXPO_UNSTABLE_TUNNEL_V2=1 expo start --go --tunnel",
     "start:clear": "expo start --go --lan --clear",
+    "start:tunnel:clear": "cross-env EXPO_UNSTABLE_TUNNEL_V2=1 expo start --go --tunnel --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -72,8 +74,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test scripts/regression-tests.cjs",
     "firebase:use": "firebase use safeseat-app",
-    "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes --project safeseat-app",
-    "start:tunnel:clear": "expo start --go --tunnel --clear"
+    "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes --project safeseat-app"
   },
   "private": true
 }

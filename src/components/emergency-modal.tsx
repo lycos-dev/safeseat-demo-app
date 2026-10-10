@@ -604,16 +604,15 @@ export default function EmergencyModal({
             </Pressable>
             </ScrollView>
           </View>
-        </View>
-      </Modal>
 
-      <Modal
-        animationType="slide"
-        transparent
-        visible={contactMenuVisible}
-        onRequestClose={() => setContactMenuVisible(false)}
-      >
-        <View style={styles.contactBackdrop}>
+          {contactMenuVisible ? (
+            <View style={styles.contactBackdrop}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close emergency contacts"
+            onPress={() => setContactMenuVisible(false)}
+            style={StyleSheet.absoluteFillObject}
+          />
           <View style={styles.contactSheet}>
             <View style={styles.contactHeader}>
               <View style={{ flex: 1 }}>
@@ -665,6 +664,8 @@ export default function EmergencyModal({
               </View>
             )}
           </View>
+            </View>
+          ) : null}
         </View>
       </Modal>
     </>
@@ -920,7 +921,9 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   contactBackdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    elevation: 100,
     justifyContent: "flex-end",
     backgroundColor: themes.overlay,
   },

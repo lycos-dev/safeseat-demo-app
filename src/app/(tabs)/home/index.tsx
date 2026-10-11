@@ -1,5 +1,4 @@
 import ThemedHost from "@/components/themed-host";
-import EmergencyModal from "@/components/emergency-modal";
 import { SeatVitals } from "@/components/seat-card";
 import HomeMonitorRow from "@/components/home-monitor-row";
 import LiveSeatDetailModal from "@/components/live-seat-detail-modal";
@@ -141,15 +140,12 @@ export default function Home() {
     telemetryReady,
     status: hubStatus,
     seatState: hubSeatState,
-    rawSeatState,
     simulationActive,
     simulationState,
     resetDecisionLatch,
     setSimulationState,
     armUatWarning,
     cancelUatWarning,
-    emergencyAlertAcknowledged,
-    acknowledgeEmergencyAlert,
     silenceAlertFeedback,
   } = useSafeSeatHub();
   const {
@@ -164,7 +160,6 @@ export default function Home() {
   const [assignments, setAssignments] = useState<Record<number, Profile>>({});
   const [hardwareSeatNo, setHardwareSeatNo] = useState<number | null>(null);
   const [consents, setConsents] = useState<Record<number, ConsentState>>({});
-  const [dismissedSeats, setDismissedSeats] = useState<Set<number>>(new Set());
   const [endSessionVisible, setEndSessionVisible] = useState(false);
   const [endingSeatNo, setEndingSeatNo] = useState<number | null>(null);
   const [endingAllSessions, setEndingAllSessions] = useState(false);
@@ -648,12 +643,6 @@ export default function Home() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const emergencySeatNo = isLockedIn
-    ? SEAT_NUMBERS.find(
-        (seatNo) => getSeatState(seatNo) === "emergency" && assignments[seatNo] && !dismissedSeats.has(seatNo),
-      )
-    : undefined;
-  const emergencyProfile = emergencySeatNo !== undefined ? assignments[emergencySeatNo] : undefined;
 
   const linkedDisplayState = hardwareSeatNo ? getSeatState(hardwareSeatNo) : null;
 
@@ -1069,21 +1058,6 @@ export default function Home() {
           }}
         />
 
-        {emergencySeatNo !== undefined && emergencyProfile ? (
-          <EmergencyModal
-            seat={emergencySeatNo}
-            visible
-            onClose={() => setDismissedSeats((prev) => new Set(prev).add(emergencySeatNo))}
-            id={emergencyProfile.id}
-            name={emergencyProfile.isAccountOwner ? "You" : emergencyProfile.name}
-            icon={emergencyProfile.photoURL ?? emergencyProfile.icon}
-            isAccountOwner={emergencyProfile.isAccountOwner}
-            vitals={vitalSigns}
-            alertAcknowledged={emergencyAlertAcknowledged}
-            onAcknowledgeAlert={acknowledgeEmergencyAlert}
-            isRealEmergency={rawSeatState === "emergency"}
-          />
-        ) : null}
       </SafeAreaView>
     </View>
   );

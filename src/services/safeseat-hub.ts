@@ -30,6 +30,9 @@ export type SafeSeatStatusPayload = {
     strong_multisensor_candidate?: boolean;
     strong_multisensor_elapsed_ms?: number;
     emergency_persistence_required_ms?: number;
+    monitoring_limited?: boolean;
+    monitoring_limited_persistent?: boolean;
+    monitoring_limited_ms?: number;
     camera_fusion_role?: string;
     occupancy?: string;
     motion_context?: string;
@@ -90,6 +93,16 @@ export type SafeSeatStatusPayload = {
       calibrated?: boolean;
       occupied?: boolean;
       back_contact?: boolean;
+      validation_posture?: {
+        reference_ready?: boolean;
+        pattern_active?: boolean;
+        strong_vote?: boolean;
+        candidate_ms?: number;
+        posture?: "LEFT" | "RIGHT" | "FORWARD" | "NONE" | string;
+        monitoring_limited?: boolean;
+        monitoring_limited_persistent?: boolean;
+        monitoring_limited_ms?: number;
+      };
       sampling_rate_hz?: number | null;
       model?: SafeSeatModelEvidence;
     };

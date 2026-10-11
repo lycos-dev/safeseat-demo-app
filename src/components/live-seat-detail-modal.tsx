@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useEffect } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { type ThemePalette } from "@/constants/theme";
@@ -95,7 +96,15 @@ export default function LiveSeatDetailModal({
 }: Props) {
   const themes = useTheme();
   const styles = createStyles(themes);
-  const { refresh } = useSafeSeatHub();
+  const { refresh, seatState } = useSafeSeatHub();
+
+  // A live-readings sheet must never cover an Emergency. Close it as soon as
+  // the global Fusion state enters EMERGENCY so the app-wide Emergency modal
+  // can take visual priority immediately.
+  useEffect(() => {
+    if (visible && seatState === "emergency") onClose();
+  }, [onClose, seatState, visible]);
+
   const freshness = updatedSeconds === null ? "No live update" : `Updated ${updatedSeconds}s ago`;
 
   const triggerHiddenCameraMode = (mode: SafeSeatControlledCameraMode) => {

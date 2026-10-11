@@ -16,6 +16,8 @@ import { SeatSessionProvider } from "@/hooks/seat-session-context";
 import { DriverGuideProvider, useDriverGuide } from "@/hooks/driver-guide-context";
 import DriverGuideOverlay from "@/components/driver-guide-overlay";
 import GuidePulseOverlay from "@/components/guide-pulse-overlay";
+import GlobalEmergencyOverlay from "@/components/global-emergency-overlay";
+import MonitoringLimitedNotice from "@/components/monitoring-limited-notice";
 
 import homeXml from "@expo/material-symbols/home.xml";
 import seatXml from "@expo/material-symbols/airline_seat_recline_extra.xml";
@@ -106,6 +108,7 @@ function TabsInner() {
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "top"]}>
       <View style={styles.root}>
         <View style={styles.bannerContainer}><Banner /></View>
+        <MonitoringLimitedNotice />
         <Tabs
           tabBarPosition="bottom"
           // @ts-ignore
@@ -118,6 +121,7 @@ function TabsInner() {
           <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: ({ focused }: any) => tabIcon(focused, "gearshape.fill", "gearshape", settingsXml) }} />
         </Tabs>
         <DriverGuideOverlay />
+        <GlobalEmergencyOverlay />
       </View>
     </SafeAreaView>
   );

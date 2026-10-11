@@ -3,13 +3,13 @@ import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/c
 import { useTheme } from "@/hooks/use-theme";
 import { auth, db } from "@/firebase";
 import { useSafeSeatHub } from "@/hooks/safeseat-hub-context";
-import { SafeSeatStatusPayload, sensorHealthLabel } from "@/services/safeseat-hub";
+import { getSafeSeatLocalNetworkPermissionState, SafeSeatStatusPayload, sensorHealthLabel } from "@/services/safeseat-hub";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import { doc, getDoc } from "firebase/firestore";
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 type CheckState = "idle" | "checking" | "ready" | "attention";
@@ -157,6 +157,23 @@ export default function Diagnostics() {
     const nextChecks: AppCheck[] = [];
     const refreshedHub = await refresh();
 
+    if (Platform.OS === "web") {
+      const localPermission = await getSafeSeatLocalNetworkPermissionState();
+      if (localPermission === "granted") {
+        nextChecks.push({ label: "Browser local network access", value: "Allowed", state: "ready" });
+      } else if (localPermission === "denied") {
+        nextChecks.push({ label: "Browser local network access", value: "Blocked in site settings", state: "attention" });
+      } else if (localPermission === "prompt") {
+        nextChecks.push({ label: "Browser local network access", value: "Permission required", state: "attention" });
+      } else {
+        nextChecks.push({
+          label: "Browser local network access",
+          value: refreshedHub ? "Available" : "Browser-managed",
+          state: refreshedHub ? "ready" : "attention",
+        });
+      }
+    }
+
     const currentUser = auth.currentUser;
     nextChecks.push({
       label: "Signed-in session",
@@ -260,6 +277,21 @@ export default function Diagnostics() {
           loading={state === "checking"}
           fullWidth
         />
+
+        {Platform.OS === "web" && !hubConnected && (
+          <View style={styles.webFallbackCard}>
+            <Text style={styles.webFallbackTitle}>Web fallback</Text>
+            <Text style={styles.webFallbackText}>
+              If this browser blocks the Vercel page from reading the local Main Hub, you can still open the Hub&apos;s own validation page directly while connected to SafeSeat Wi-Fi.
+            </Text>
+            <Button
+              label="Open Main Hub Validation"
+              variant="secondary"
+              onPress={() => void Linking.openURL(`${hubUrl}/validation`)}
+              fullWidth
+            />
+          </View>
+        )}
 
         {checks.length > 0 && (
           <View style={styles.section}>
@@ -370,6 +402,9 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   moduleTitle: { color: themes.text, fontSize: 14, fontFamily: "Body-Bold" },
   moduleDetail: { color: themes.textSecondary, fontSize: 11, lineHeight: 15, marginTop: 2, fontFamily: "Body-Regular" },
   moduleStatus: { maxWidth: 92, textAlign: "right", fontSize: 10, lineHeight: 14, fontFamily: "Body-Bold" },
+  webFallbackCard: { padding: spacing.two, borderRadius: 18, backgroundColor: themes.surfaceSoft, borderWidth: 1, borderColor: themes.divider, gap: spacing.one },
+  webFallbackTitle: { color: themes.text, fontSize: 14, fontFamily: "Body-Bold" },
+  webFallbackText: { color: themes.textSecondary, fontSize: fontsize.caption, lineHeight: 18, fontFamily: "Body-Regular" },
   noticeCard: { padding: spacing.two, borderRadius: 18, backgroundColor: themes.surfaceSoft, borderWidth: 1, borderColor: themes.divider },
   noticeTitle: { color: themes.text, fontSize: 14, fontFamily: "Body-Bold" },
   noticeText: { color: themes.textSecondary, fontSize: fontsize.caption, lineHeight: 18, marginTop: spacing.half, fontFamily: "Body-Regular" },

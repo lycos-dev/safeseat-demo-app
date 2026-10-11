@@ -152,6 +152,19 @@ export type SafeSeatHubConnectionState =
 
 const DEFAULT_HUB_URL = "http://192.168.4.1";
 const REQUEST_TIMEOUT_MS = 1800;
+const WEB_LOCAL_PROMPT_TIMEOUT_MS = 20_000;
+const WEB_LOCAL_FALLBACK_TIMEOUT_MS = 5_000;
+
+export type SafeSeatLocalNetworkPermissionState =
+  | "granted"
+  | "prompt"
+  | "denied"
+  | "unsupported"
+  | "not-web";
+
+type SafeSeatRequestInit = RequestInit & {
+  targetAddressSpace?: "local" | "loopback" | "public";
+};
 
 export function getSafeSeatHubUrl(): string {
   const configured = process.env.EXPO_PUBLIC_SAFESEAT_HUB_URL?.trim();
@@ -159,18 +172,109 @@ export function getSafeSeatHubUrl(): string {
   return value.replace(/\/+$/, "");
 }
 
+function isWebRuntime(): boolean {
+  return typeof window !== "undefined" && typeof navigator !== "undefined";
+}
+
+function isPrivateLocalAddress(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "localhost" || host.endsWith(".local")) return true;
+    if (/^10\./.test(host) || /^192\.168\./.test(host) || /^169\.254\./.test(host)) return true;
+
+    const match = host.match(/^172\.(\d{1,3})\./);
+    if (match) {
+      const second = Number(match[1]);
+      if (second >= 16 && second <= 31) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+export async function getSafeSeatLocalNetworkPermissionState(): Promise<SafeSeatLocalNetworkPermissionState> {
+  if (!isWebRuntime()) return "not-web";
+
+  const permissions = (navigator as Navigator & {
+    permissions?: { query?: (descriptor: unknown) => Promise<{ state?: string }> };
+  }).permissions;
+
+  if (!permissions?.query) return "unsupported";
+
+  for (const name of ["local-network", "local-network-access"]) {
+    try {
+      const result = await permissions.query({ name });
+      const state = String(result?.state ?? "").toLowerCase();
+      if (state === "granted" || state === "prompt" || state === "denied") {
+        return state;
+      }
+    } catch {
+      // Older Safari/Chromium builds do not recognize these permission names.
+    }
+  }
+
+  return "unsupported";
+}
+
+function webLocalRequestInit(url: string, init: RequestInit): SafeSeatRequestInit {
+  if (!isWebRuntime() || !isPrivateLocalAddress(url)) return init;
+
+  return {
+    ...init,
+    mode: "cors",
+    // Newer browsers use this to classify the ESP32 as a local-network target
+    // and can show a Local Network permission prompt on an HTTPS deployment.
+    // Older browsers safely ignore unknown dictionary members.
+    targetAddressSpace: "local",
+  };
+}
+
+function webLocalAccessError(url: string): Error {
+  const fallback = `${getSafeSeatHubUrl()}/validation`;
+  return new Error(
+    `The browser could not reach the SafeSeat Main Hub at ${url}. ` +
+      `Stay connected to the SafeSeat Wi-Fi and allow Local Network access for this site. ` +
+      `If this browser does not support local-network access from HTTPS, open ${fallback} directly.`,
+  );
+}
+
 async function fetchWithTimeout(url: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const localWebRequest = isWebRuntime() && isPrivateLocalAddress(url);
+  const permission = localWebRequest
+    ? await getSafeSeatLocalNetworkPermissionState()
+    : "not-web";
+
+  if (permission === "denied") {
+    throw webLocalAccessError(url);
+  }
+
+  const effectiveTimeout = permission === "prompt"
+    ? Math.max(timeoutMs, WEB_LOCAL_PROMPT_TIMEOUT_MS)
+    : localWebRequest && permission === "unsupported"
+      ? Math.max(timeoutMs, WEB_LOCAL_FALLBACK_TIMEOUT_MS)
+      : timeoutMs;
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), effectiveTimeout);
 
   try {
-    return await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      signal: controller.signal,
-    });
+    return await fetch(
+      url,
+      webLocalRequestInit(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+      }),
+    );
+  } catch (error) {
+    if (localWebRequest && !(error instanceof Error && error.name === "AbortError")) {
+      throw webLocalAccessError(url);
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -215,15 +319,18 @@ async function postFormWithTimeout(
     .join("&");
 
   try {
-    return await fetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body,
-      signal: controller.signal,
-    });
+    return await fetch(
+      url,
+      webLocalRequestInit(url, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body,
+        signal: controller.signal,
+      }),
+    );
   } finally {
     clearTimeout(timeout);
   }

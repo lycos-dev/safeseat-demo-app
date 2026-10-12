@@ -245,8 +245,10 @@ function toMovementActivity(status: SafeSeatStatusPayload | null, connected: boo
 
 function buildSample(status: SafeSeatStatusPayload | null, connected: boolean): SeatSessionSample {
   const c1001 = status?.sensors?.c1001;
+  const occupied = status?.sensors?.fsr?.occupied === true;
   const vitalsTrusted = Boolean(
     connected &&
+    occupied &&
     status?.telemetry_ready &&
     c1001?.connected &&
     !c1001?.stale &&
@@ -260,7 +262,7 @@ function buildSample(status: SafeSeatStatusPayload | null, connected: boolean): 
     : undefined;
 
   const mlx = status?.sensors?.mlx90614;
-  const surfaceTemp = connected && mlx?.connected && mlx?.valid !== false && typeof mlx?.object_temperature_c === "number" && Number.isFinite(mlx.object_temperature_c)
+  const surfaceTemp = connected && occupied && mlx?.connected && mlx?.valid !== false && typeof mlx?.object_temperature_c === "number" && Number.isFinite(mlx.object_temperature_c)
     ? round(mlx.object_temperature_c, 1)
     : undefined;
 
@@ -270,7 +272,7 @@ function buildSample(status: SafeSeatStatusPayload | null, connected: boolean): 
     ...(rr !== undefined ? { respirationRateBpm: rr } : {}),
     ...(surfaceTemp !== undefined ? { surfaceTemperatureC: surfaceTemp } : {}),
     ...(typeof status?.sensors?.fsr?.occupied === "boolean" ? { occupied: status.sensors.fsr.occupied } : {}),
-    movementActivity: toMovementActivity(status, connected),
+    movementActivity: occupied ? toMovementActivity(status, connected) : "Unavailable",
     cameraVerification: toCameraState(status, connected),
     fusionState: toFusionState(status),
   };

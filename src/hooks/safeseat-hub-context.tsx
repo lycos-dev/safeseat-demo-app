@@ -5,8 +5,7 @@ import {
   SafeSeatHubConnectionState,
   SafeSeatStatusPayload,
 } from "@/services/safeseat-hub";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import { setAudioModeAsync, setIsAudioActiveAsync, useAudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
 import {
   AppState,
@@ -67,7 +66,6 @@ const SafeSeatHubContext = createContext<SafeSeatHubContextValue | undefined>(un
 
 const CONNECTED_POLL_MS = 1000;
 const DISCONNECTED_POLL_MS = 3000;
-const IS_LOCKED_IN_KEY = "isLockedIn";
 const WARNING_ALERT_INTERVAL_MS = 3_000;
 const EMERGENCY_ALERT_INTERVAL_MS = 4_000;
 
@@ -90,8 +88,14 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
   const [simulationState, setSimulationStateValue] = useState<SafeSeatSimulationState>("off");
   const [emergencyAlertAcknowledged, setEmergencyAlertAcknowledged] = useState(false);
 
-  const warningPlayer = useAudioPlayer(require("../../assets/sounds/warning-chime.wav"));
-  const emergencyPlayer = useAudioPlayer(require("../../assets/sounds/emergency-alert.wav"));
+  const warningPlayer = useAudioPlayer(
+    require("../../assets/sounds/warning-chime.wav"),
+    { downloadFirst: true, keepAudioSessionActive: true },
+  );
+  const emergencyPlayer = useAudioPlayer(
+    require("../../assets/sounds/emergency-alert.wav"),
+    { downloadFirst: true, keepAudioSessionActive: true },
+  );
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const mountedRef = useRef(true);
@@ -101,36 +105,66 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
   const liveReadinessRef = useRef({ connected: false, telemetryReady: false });
   const warningAlertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const emergencyAlertIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioModeConfiguredRef = useRef(false);
 
-  useEffect(() => {
-    void setAudioModeAsync({
-      playsInSilentMode: true,
-      interruptionMode: "duckOthers",
-    }).catch((error) => {
-      console.warn("SafeSeat alert audio mode could not be configured:", error);
-    });
+  const ensureAlertAudioReady = useCallback(async () => {
+    // SafeSeat alert tones are short UI/safety cues, not background media.
+    // mixWithOthers avoids requesting exclusive audio focus and is the most
+    // reliable mode for these short sounds in Expo Go and standalone builds.
+    if (!audioModeConfiguredRef.current) {
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
+        interruptionMode: "mixWithOthers",
+      });
+      audioModeConfiguredRef.current = true;
+    }
+
+    // Expo can deactivate the native session after interruptions / reloads.
+    // Explicitly reactivate it before each alert cue.
+    await setIsAudioActiveAsync(true);
   }, []);
 
+  useEffect(() => {
+    void ensureAlertAudioReady().catch((error) => {
+      audioModeConfiguredRef.current = false;
+      console.warn("SafeSeat alert audio mode could not be configured:", error);
+    });
+  }, [ensureAlertAudioReady]);
+
   const replayWarningCue = useCallback(() => {
-    try {
-      warningPlayer.seekTo(0);
-      warningPlayer.play();
-    } catch (error) {
-      console.warn("SafeSeat warning chime could not play:", error);
-    }
+    void (async () => {
+      try {
+        await ensureAlertAudioReady();
+        warningPlayer.volume = 1;
+        warningPlayer.muted = false;
+        if (warningPlayer.playing) warningPlayer.pause();
+        await warningPlayer.seekTo(0);
+        warningPlayer.play();
+      } catch (error) {
+        audioModeConfiguredRef.current = false;
+        console.warn("SafeSeat warning chime could not play:", error);
+      }
+    })();
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
-  }, [warningPlayer]);
+  }, [ensureAlertAudioReady, warningPlayer]);
 
   const replayEmergencyCue = useCallback(() => {
-    try {
-      emergencyPlayer.volume = 1;
-      emergencyPlayer.seekTo(0);
-      emergencyPlayer.play();
-    } catch (error) {
-      console.warn("SafeSeat emergency chime could not play:", error);
-    }
+    void (async () => {
+      try {
+        await ensureAlertAudioReady();
+        emergencyPlayer.volume = 1;
+        emergencyPlayer.muted = false;
+        if (emergencyPlayer.playing) emergencyPlayer.pause();
+        await emergencyPlayer.seekTo(0);
+        emergencyPlayer.play();
+      } catch (error) {
+        audioModeConfiguredRef.current = false;
+        console.warn("SafeSeat emergency chime could not play:", error);
+      }
+    })();
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined);
-  }, [emergencyPlayer]);
+  }, [emergencyPlayer, ensureAlertAudioReady]);
 
   const clearAlertFeedbackTimers = useCallback(() => {
     if (warningAlertIntervalRef.current) {
@@ -339,31 +373,25 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
       return () => { cancelled = true; clearAlertFeedbackTimers(); };
     }
 
-    const startFeedback = async () => {
-      try {
-        const rawLocked = await AsyncStorage.getItem(IS_LOCKED_IN_KEY);
-        const monitoringActive = rawLocked ? Boolean(JSON.parse(rawLocked)) : false;
-        if (cancelled || !monitoringActive) return;
+    const startFeedback = () => {
+      if (cancelled || appStateRef.current !== "active") return;
 
-        if (driverFacingSeatState === "warning") {
-          replayWarningCue();
-          warningAlertIntervalRef.current = setInterval(replayWarningCue, WARNING_ALERT_INTERVAL_MS);
-
-          // WARNING feedback is state-driven: keep replaying the existing
-          // beep-beep cue at the same interval for as long as WARNING remains
-          // active. The cleanup below stops it immediately when the state clears.
-          return;
-        }
-
-        setEmergencyAlertAcknowledged(false);
-        replayEmergencyCue();
-        emergencyAlertIntervalRef.current = setInterval(replayEmergencyCue, EMERGENCY_ALERT_INTERVAL_MS);
-      } catch (error) {
-        console.warn("SafeSeat alert feedback could not verify session state:", error);
+      // The driver-facing alert state is already what the user sees on screen.
+      // Do not gate its sound on a second AsyncStorage read: on Android that
+      // persisted flag can briefly lag the live session and suppress a real
+      // WARNING/EMERGENCY cue even though the alert UI is already visible.
+      if (driverFacingSeatState === "warning") {
+        replayWarningCue();
+        warningAlertIntervalRef.current = setInterval(replayWarningCue, WARNING_ALERT_INTERVAL_MS);
+        return;
       }
+
+      setEmergencyAlertAcknowledged(false);
+      replayEmergencyCue();
+      emergencyAlertIntervalRef.current = setInterval(replayEmergencyCue, EMERGENCY_ALERT_INTERVAL_MS);
     };
 
-    void startFeedback();
+    startFeedback();
     return () => {
       cancelled = true;
       clearAlertFeedbackTimers();

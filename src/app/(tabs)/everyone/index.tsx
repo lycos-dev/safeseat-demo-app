@@ -1,6 +1,7 @@
 import addXml from "@expo/material-symbols/add.xml";
 import { Spacing as spacing, FontSize as fontsize, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { useSafeSeatHub } from "@/hooks/safeseat-hub-context";
 import { Host, Icon } from "@/components/ui-bridge";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
@@ -78,6 +79,13 @@ export default function Everyone() {
 
 	const [addProfileVisible, setAddProfileVisible] = useState(false);
 	const [addContactVisible, setAddContactVisible] = useState(false);
+	const { seatState: hubSeatState } = useSafeSeatHub();
+
+	useEffect(() => {
+		if (hubSeatState !== "emergency") return;
+		setAddProfileVisible(false);
+		setAddContactVisible(false);
+	}, [hubSeatState]);
 
 	const searchInputRef = useRef<any>(null);
 

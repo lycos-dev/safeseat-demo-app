@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -101,6 +101,7 @@ export default function Assign() {
     setSimulationState,
     cancelUatWarning,
     silenceAlertFeedback,
+    seatState: hubSeatState,
   } = useSafeSeatHub();
 
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -113,6 +114,14 @@ export default function Assign() {
   const [consentSeatNo, setConsentSeatNo] = useState<number | null>(null);
   const [seatOptionsVisible, setSeatOptionsVisible] = useState(false);
   const [seatOptionsSeatNo, setSeatOptionsSeatNo] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (hubSeatState !== "emergency") return;
+    setSensorPickerVisible(false);
+    setAssignModalVisible(false);
+    setConsentModalVisible(false);
+    setSeatOptionsVisible(false);
+  }, [hubSeatState]);
 
   const assignedSeatCount = useMemo(
     () => SEATS.filter((seat) => Boolean(assignments[seat.seatNo])).length,

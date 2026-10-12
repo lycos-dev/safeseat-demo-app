@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import EmergencyModal from "@/components/emergency-modal";
 import type { SeatVitals } from "@/components/seat-card";
@@ -21,10 +21,13 @@ export default function GlobalEmergencyOverlay() {
     rawSeatState,
     emergencyAlertAcknowledged,
     acknowledgeEmergencyAlert,
+    simulationState,
+    setSimulationState,
   } = useSafeSeatHub();
   const { activeSessions } = useSeatSessions();
   const [dismissedForCurrentEmergency, setDismissedForCurrentEmergency] = useState(false);
   const [presentationReady, setPresentationReady] = useState(false);
+  const redisplayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const emergencyActive = seatState === "emergency";
 
@@ -33,18 +36,25 @@ export default function GlobalEmergencyOverlay() {
     // Main Hub leaves EMERGENCY, the next independent event is allowed to show
     // the modal again.
     if (!emergencyActive) {
+      if (redisplayTimerRef.current) {
+        clearTimeout(redisplayTimerRef.current);
+        redisplayTimerRef.current = null;
+      }
       setDismissedForCurrentEmergency(false);
       setPresentationReady(false);
       return;
     }
 
-    // Give screen-local sheets (especially Live Readings) one render cycle to
-    // dismiss before presenting the native Emergency modal. This avoids the
-    // iOS/React Native multiple-Modal race that originally left EMERGENCY only
-    // visible in the background.
-    const timer = setTimeout(() => setPresentationReady(true), 120);
+    // Native iOS modal dismissal animations take longer than a single React
+    // render. Waiting ~0.4s after screen-local sheets close avoids the
+    // "attempt to present while another modal is dismissing" race.
+    const timer = setTimeout(() => setPresentationReady(true), 420);
     return () => clearTimeout(timer);
   }, [emergencyActive]);
+
+  useEffect(() => () => {
+    if (redisplayTimerRef.current) clearTimeout(redisplayTimerRef.current);
+  }, []);
 
   const linkedSession = useMemo(() => {
     const sessions = Object.values(activeSessions);
@@ -93,6 +103,26 @@ export default function GlobalEmergencyOverlay() {
     ? "You"
     : linkedSession.occupant.displayName || "Passenger";
 
+  const handleClose = () => {
+    // For a researcher-only Emergency, cancelling the modal also stops the
+    // local simulation so it cannot remain latched behind the UI.
+    if (simulationState === "emergency" && rawSeatState !== "emergency") {
+      setSimulationState("off");
+      return;
+    }
+
+    // A real hardware Emergency cannot be cleared by the phone. Let the user
+    // dismiss the sheet briefly after verification, but bring it back if the
+    // Main Hub still reports EMERGENCY. This prevents a stale dismissal from
+    // making later emergency presentation appear broken.
+    setDismissedForCurrentEmergency(true);
+    if (redisplayTimerRef.current) clearTimeout(redisplayTimerRef.current);
+    redisplayTimerRef.current = setTimeout(() => {
+      redisplayTimerRef.current = null;
+      setDismissedForCurrentEmergency(false);
+    }, 2500);
+  };
+
   return (
     <EmergencyModal
       visible
@@ -104,7 +134,7 @@ export default function GlobalEmergencyOverlay() {
       alertAcknowledged={emergencyAlertAcknowledged}
       onAcknowledgeAlert={acknowledgeEmergencyAlert}
       isRealEmergency={rawSeatState === "emergency"}
-      onClose={() => setDismissedForCurrentEmergency(true)}
+      onClose={handleClose}
     />
   );
 }

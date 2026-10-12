@@ -12,7 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local-storage";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { confirmAction } from "../../../utils/platform-dialog";
@@ -43,7 +43,7 @@ export default function Settings() {
   const sectionsStartY = useRef(0);
   const stickyHeight = useRef(62);
   const bottomPad = 100 + insets.bottom;
-  const { connected: hubConnected, telemetryReady } = useSafeSeatHub();
+  const { connected: hubConnected, telemetryReady, seatState: hubSeatState } = useSafeSeatHub();
   const { startGuide } = useDriverGuide();
 
   const [userEmail, setUserEmail] = useState("Not set");
@@ -52,6 +52,12 @@ export default function Settings() {
   const [activeSection, setActiveSection] = useState<SectionKey>("account");
   const [changePhoneVisible, setChangePhoneVisible] = useState(false);
   const [changePassVisible, setChangePassVisible] = useState(false);
+
+  useEffect(() => {
+    if (hubSeatState !== "emergency") return;
+    setChangePhoneVisible(false);
+    setChangePassVisible(false);
+  }, [hubSeatState]);
 
   const {
     emergencyEscalation, setEmergencyEscalation,

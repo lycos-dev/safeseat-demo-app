@@ -15,6 +15,7 @@ export type MonitorSeatState =
   | "offline"
   | "ready"
   | "monitoring"
+  | "waiting"
   | "ended";
 
 export type MonitorVitals = {
@@ -37,6 +38,7 @@ type Props = {
   delayLongPress?: number;
   freshnessSeconds?: number | null;
   detailText?: string;
+  monitoringLimited?: boolean;
 };
 
 type StateMeta = {
@@ -64,6 +66,8 @@ const stateMeta = (
       return { label: "EMERGENCY", hint: "Check passenger now", symbol: "!!", color: themes.warnBttn };
     case "unknown":
       return { label: "ANALYZING", hint: "Checking sensors", symbol: "…", color: themes.info };
+    case "waiting":
+      return { label: "WAITING", hint: "Seat not occupied", symbol: "○", color: themes.waiting };
     case "consent":
       return { label: "CONSENT", hint: "Action needed", symbol: "?", color: themes.lightOrange };
     case "declined":
@@ -84,7 +88,7 @@ const stateMeta = (
 };
 
 export default function HomeMonitorRow({
-  seatNo, role, name, photo, state, isHardwareSeat = false, vitals, onPress, onLongPress, delayLongPress, freshnessSeconds, detailText,
+  seatNo, role, name, photo, state, isHardwareSeat = false, vitals, onPress, onLongPress, delayLongPress, freshnessSeconds, detailText, monitoringLimited = false,
 }: Props) {
   const themes = useTheme();
   const { width, height } = useWindowDimensions();
@@ -99,6 +103,7 @@ export default function HomeMonitorRow({
     ? `HR ${vitals.heartRateBpm ?? "—"} · RR ${vitals.respirationRateBpm ?? "—"}${freshness}`
     : `${vitals?.statusLabel === "REACQUIRING" ? "Vitals reacquiring" : "Vitals unavailable"}${freshness}`;
   const roleLabel = seatNo === 1 ? "DRIVER" : role.toUpperCase();
+  const showLimited = monitoringLimited && isHardwareSeat && state !== "warning" && state !== "emergency" && state !== "waiting" && state !== "offline";
 
   return (
     <Pressable
@@ -136,6 +141,12 @@ export default function HomeMonitorRow({
         <Text maxFontSizeMultiplier={1.15} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.state, { color: meta.color }, compact && { fontSize: 17, lineHeight: 20 }]}>{meta.label}</Text>
         {showVitals ? <Text maxFontSizeMultiplier={1.1} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.vitals}>{liveLine}</Text> : null}
         {!showVitals && detailText ? <Text maxFontSizeMultiplier={1.1} numberOfLines={1} style={styles.vitals}>{detailText}</Text> : null}
+        {showLimited ? (
+          <View style={styles.limitedLine}>
+            <View style={[styles.limitedDot, { backgroundColor: themes.limited }]} />
+            <Text maxFontSizeMultiplier={1.1} numberOfLines={1} style={[styles.limitedText, { color: themes.limited }]}>Monitoring limited</Text>
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -155,4 +166,7 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   status: { flex: 0.85, minWidth: 0, alignItems: "flex-end", justifyContent: "center", gap: 3 },
   state: { width: "100%", textAlign: "right", fontSize: 19, lineHeight: 22, fontFamily: "Body-Bold" },
   vitals: { color: themes.textSecondary, fontSize: 10, lineHeight: 12, fontFamily: "Body-Medium" },
+  limitedLine: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4, maxWidth: "100%" },
+  limitedDot: { width: 5, height: 5, borderRadius: 3 },
+  limitedText: { fontSize: 9, lineHeight: 11, fontFamily: "Body-Bold" },
 });

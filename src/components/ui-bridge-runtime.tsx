@@ -68,15 +68,21 @@ export function Host(props: any) {
   return <View style={props.style}>{props.children}</View>;
 }
 
-export function Icon({ name, size = 20, color = "currentColor", style, ...rest }: any) {
+export function Icon({ name, size = 20, color, style, ...rest }: any) {
   if (!IS_WEB) {
-    return React.createElement((ExpoUI as any).Icon, { name, size, color, style, ...rest });
+    // Expo UI's Android IconView rejects CSS-only values such as
+    // "currentColor" with "Unknown color". Omit the tint entirely when
+    // callers do not provide a React Native ColorValue so the native icon can
+    // inherit its Host content color safely.
+    const nativeProps: any = { name, size, style, ...rest };
+    if (color != null && color !== "currentColor") nativeProps.color = color;
+    return React.createElement((ExpoUI as any).Icon, nativeProps);
   }
   return (
     <Ionicons
       name={normalizeSymbol(name) as any}
       size={size}
-      color={color}
+      color={color ?? "currentColor"}
       style={style}
       {...rest}
     />

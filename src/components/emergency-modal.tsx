@@ -114,9 +114,13 @@ export default function EmergencyModal({
     if (!visible) {
       clearHoldTimer();
       setHoldingCancel(false);
+      setContactMenuVisible(false);
       return;
     }
 
+    // A fresh emergency always starts on the main emergency screen. This also
+    // prevents a stale Contacts sheet from covering a later emergency event.
+    setContactMenuVisible(false);
     setSecondsLeft(escalationWindowSeconds);
     setWindowElapsed(false);
     setHoldingCancel(false);
@@ -309,8 +313,11 @@ export default function EmergencyModal({
   };
 
   const handleOpenContactMenu = () => {
-    setContactMenuVisible(true);
-    void fetchEmergencyContacts();
+    setContactMenuVisible((current) => {
+      const next = !current;
+      if (next) void fetchEmergencyContacts();
+      return next;
+    });
   };
 
   const handleCall = async (phoneNumber: string) => {
@@ -528,11 +535,22 @@ export default function EmergencyModal({
 
               <Pressable
                 accessibilityRole="button"
+                accessibilityState={{ expanded: contactMenuVisible }}
                 onPress={handleOpenContactMenu}
-                style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.quickAction,
+                  contactMenuVisible && styles.quickActionExpanded,
+                  pressed && styles.pressed,
+                ]}
               >
-                <Ionicons name="people" color={themes.primaryBttn} size={20} />
-                <Text style={styles.quickActionText}>Contacts</Text>
+                <Ionicons
+                  name={contactMenuVisible ? "chevron-up" : "people"}
+                  color={themes.primaryBttn}
+                  size={20}
+                />
+                <Text style={styles.quickActionText}>
+                  {contactMenuVisible ? "Hide contacts" : "Contacts"}
+                </Text>
               </Pressable>
 
               <Pressable
@@ -544,6 +562,69 @@ export default function EmergencyModal({
                 <Text style={styles.quickActionText}>Dialer</Text>
               </Pressable>
             </View>
+
+            {contactMenuVisible ? (
+              <View style={styles.inlineContacts}>
+                <View style={styles.inlineContactsHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inlineContactsTitle}>Emergency Contacts</Text>
+                    <Text style={styles.inlineContactsSubtitle}>
+                      {isDriverSeat
+                        ? "Manual dialer shortcuts. Automated SMS escalation continues in the background."
+                        : "Manual dialer shortcuts."}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Collapse emergency contacts"
+                    onPress={() => setContactMenuVisible(false)}
+                    style={({ pressed }) => [styles.inlineContactsCollapse, pressed && styles.pressed]}
+                  >
+                    <Ionicons name="chevron-up" color={themes.text} size={20} />
+                  </Pressable>
+                </View>
+
+                {loadingContacts ? (
+                  <View style={styles.inlineContactsLoading}>
+                    <ActivityIndicator size="small" color={themes.primaryBttn} />
+                    <Text style={styles.inlineContactsLoadingText}>Loading contacts…</Text>
+                  </View>
+                ) : contacts.length > 0 ? (
+                  <View style={styles.inlineContactList}>
+                    {contacts.map((contact) => (
+                      <Pressable
+                        key={contact.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Call ${contact.name}`}
+                        onPress={() => void handleCall(contact.phone)}
+                        style={({ pressed }) => [styles.inlineContactRow, pressed && styles.contactRowPressed]}
+                      >
+                        <View style={styles.contactIcon}>
+                          <Ionicons name="call" color={themes.primaryBttn} size={19} />
+                        </View>
+                        <View style={styles.contactCopy}>
+                          <Text style={styles.contactName}>{contact.name}</Text>
+                          <Text style={styles.contactPhone}>{contact.phone || "No phone number"}</Text>
+                        </View>
+                        <Text style={styles.contactOrder}>
+                          {contact.hierarchy > 0
+                            ? `${contact.hierarchy}${contact.hierarchy === 1 ? "st" : contact.hierarchy === 2 ? "nd" : contact.hierarchy === 3 ? "rd" : "th"}`
+                            : ""}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.inlineEmptyContacts}>
+                    <Ionicons name="person-add-outline" color={themes.textSecondary} size={24} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.emptyContactsTitle}>No emergency contacts yet</Text>
+                      <Text style={styles.emptyContactsText}>Add contacts from Profiles → Emergency Contacts.</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            ) : null}
 
             <Pressable
               accessibilityRole="button"
@@ -605,69 +686,10 @@ export default function EmergencyModal({
             </ScrollView>
           </View>
 
-          {contactMenuVisible ? (
-            <View style={styles.contactBackdrop}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close emergency contacts"
-            onPress={() => setContactMenuVisible(false)}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={styles.contactSheet}>
-            <View style={styles.contactHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.contactTitle}>Emergency Contacts</Text>
-                <Text style={styles.contactSubtitle}>
-                  {isDriverSeat
-                    ? "These are manual dialer shortcuts. Automated SMS escalation runs in the background when the driver emergency countdown elapses."
-                    : "These are manual dialer shortcuts."}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close emergency contacts"
-                onPress={() => setContactMenuVisible(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" color={themes.text} size={24} />
-              </Pressable>
-            </View>
-
-            {loadingContacts ? (
-              <ActivityIndicator size="large" color={themes.primaryBttn} style={styles.loader} />
-            ) : contacts.length > 0 ? (
-              <ScrollView style={styles.contactList} contentContainerStyle={styles.contactListContent}>
-                {contacts.map((contact) => (
-                  <Pressable
-                    key={contact.id}
-                    onPress={() => void handleCall(contact.phone)}
-                    style={({ pressed }) => [styles.contactRow, pressed && styles.contactRowPressed]}
-                  >
-                    <View style={styles.contactIcon}>
-                      <Ionicons name="call" color={themes.primaryBttn} size={20} />
-                    </View>
-                    <View style={styles.contactCopy}>
-                      <Text style={styles.contactName}>{contact.name}</Text>
-                      <Text style={styles.contactPhone}>{contact.phone || "No phone number"}</Text>
-                    </View>
-                    <Text style={styles.contactOrder}>
-                      {contact.hierarchy > 0 ? `${contact.hierarchy}${contact.hierarchy === 1 ? "st" : contact.hierarchy === 2 ? "nd" : contact.hierarchy === 3 ? "rd" : "th"}` : ""}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={styles.emptyContacts}>
-                <Ionicons name="person-add-outline" color={themes.textSecondary} size={34} />
-                <Text style={styles.emptyContactsTitle}>No emergency contacts yet</Text>
-                <Text style={styles.emptyContactsText}>Add contacts from Profiles → Emergency Contacts.</Text>
-              </View>
-            )}
-          </View>
-            </View>
-          ) : null}
         </View>
       </Modal>
+
+
     </>
   );
 }
@@ -920,73 +942,78 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     opacity: 0.76,
     transform: [{ scale: 0.99 }],
   },
-  contactBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-    elevation: 100,
-    justifyContent: "flex-end",
-    backgroundColor: themes.overlay,
+  quickActionExpanded: {
+    backgroundColor: themes.primarySoft,
+    borderColor: themes.primaryBorder,
   },
-  contactSheet: {
-    maxHeight: "72%",
-    padding: spacing.two,
-    paddingBottom: spacing.four,
-    gap: spacing.two,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: themes.backgroundElement,
+  inlineContacts: {
+    gap: spacing.one,
+    padding: spacing.one + 4,
+    borderRadius: 18,
+    backgroundColor: themes.backgroundElevated,
+    borderWidth: 1,
+    borderColor: themes.primaryBorder,
+  },
+  inlineContactsHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.one,
+  },
+  inlineContactsTitle: {
+    color: themes.text,
+    fontSize: 14,
+    fontFamily: "Body-Bold",
+  },
+  inlineContactsSubtitle: {
+    color: themes.textSecondary,
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: 2,
+    fontFamily: "Body-Regular",
+  },
+  inlineContactsCollapse: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: themes.surfaceSoft,
     borderWidth: 1,
     borderColor: themes.divider,
   },
-  contactHeader: {
+  inlineContactsLoading: {
+    minHeight: 58,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.two,
-  },
-  contactTitle: {
-    color: themes.text,
-    fontSize: fontsize.header,
-    fontFamily: "Heading-Font",
-  },
-  contactSubtitle: {
-    color: themes.textSecondary,
-    fontSize: fontsize.caption,
-    lineHeight: 17,
-    fontFamily: "Body-Regular",
-    marginTop: spacing.half,
-  },
-  closeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: themes.backgroundElevated,
     alignItems: "center",
     justifyContent: "center",
-  },
-  loader: {
-    marginVertical: spacing.four,
-  },
-  contactList: {
-    width: "100%",
-  },
-  contactListContent: {
     gap: spacing.one,
   },
-  contactRow: {
+  inlineContactsLoadingText: {
+    color: themes.textSecondary,
+    fontSize: 10,
+    fontFamily: "Body-Medium",
+  },
+  inlineContactList: {
+    gap: spacing.half,
+  },
+  inlineContactRow: {
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.one,
-    padding: spacing.two,
-    borderRadius: 16,
-    backgroundColor: themes.backgroundElevated,
+    paddingHorizontal: spacing.one,
+    paddingVertical: spacing.half + 2,
+    borderRadius: 14,
+    backgroundColor: themes.surfaceSoft,
+    borderWidth: 1,
+    borderColor: themes.divider,
   },
   contactRowPressed: {
     opacity: 0.7,
   },
   contactIcon: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     backgroundColor: themes.primarySoft,
     alignItems: "center",
@@ -1010,6 +1037,15 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     color: themes.primaryBttn,
     fontSize: fontsize.caption,
     fontFamily: "Body-Bold",
+  },
+  inlineEmptyContacts: {
+    minHeight: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.one,
+    padding: spacing.one,
+    borderRadius: 14,
+    backgroundColor: themes.surfaceSoft,
   },
   emptyContacts: {
     alignItems: "center",

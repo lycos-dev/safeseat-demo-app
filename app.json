@@ -34,7 +34,15 @@
       "package": "com.ollymt.safeseatapp",
       "softwareKeyboardLayoutMode": "pan",
       "backgroundColor": "#101322",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -73,8 +81,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "908c1bb2-f235-47cb-8e62-575a06625a27"
+        "projectId": "a76f9721-7bac-4e27-81bd-8e2d86093a52"
       }
-    }
+    },
+    "owner": "lycos"
   }
 }

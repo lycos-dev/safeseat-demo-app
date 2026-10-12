@@ -49,6 +49,7 @@ export type SeatState =
   | "offline"
   | "ready"
   | "monitoring"
+  | "waiting"
   | "ended";
 
 type ConsentState = "confirmed" | "declined";
@@ -283,17 +284,40 @@ export default function Home() {
     return () => liveLoop.stop();
   }, [hubConnected, isLockedIn, livePulse, screenFocused]);
 
+  const hardwareSeatOccupancyKnown = typeof hubStatus?.sensors?.fsr?.occupied === "boolean";
+  const hardwareSeatOccupied = hubStatus?.sensors?.fsr?.occupied === true;
+  const waitingForOccupant = Boolean(
+    hardwareSeatNo &&
+    activeSessions[hardwareSeatNo] &&
+    hubConnected &&
+    telemetryReady &&
+    hardwareSeatOccupancyKnown &&
+    !hardwareSeatOccupied
+  );
+
+  const hardwareMonitoringLimited = Boolean(
+    hardwareSeatNo &&
+    activeSessions[hardwareSeatNo] &&
+    hubStatus?.system?.monitoring_limited
+  );
+  const hardwareMonitoringLimitedPersistent = Boolean(
+    hardwareMonitoringLimited && hubStatus?.system?.monitoring_limited_persistent
+  );
+
   const getSeatState = useCallback((seatNo: number): SeatState => {
     if (recentCompleted[seatNo]) return "ended";
     const seatActive = Boolean(activeSessions[seatNo]);
     if (isLockedIn && assignments[seatNo] && !seatActive) return "assigned";
+    if (seatNo === hardwareSeatNo && seatActive && hubConnected && telemetryReady && hardwareSeatOccupancyKnown && !hardwareSeatOccupied) {
+      return "waiting";
+    }
     return getSeatDisplayState({
       assigned: Boolean(assignments[seatNo]),
       ownerDriver: seatNo === 1 && Boolean(assignments[seatNo]?.isAccountOwner),
       consent: consents[seatNo], linked: seatNo === hardwareSeatNo,
       connected: hubConnected, ready: telemetryReady, active: seatActive, liveState: hubSeatState,
     });
-  }, [activeSessions, assignments, consents, hardwareSeatNo, hubConnected, hubSeatState, isLockedIn, recentCompleted, telemetryReady]);
+  }, [activeSessions, assignments, consents, hardwareSeatNo, hardwareSeatOccupancyKnown, hardwareSeatOccupied, hubConnected, hubSeatState, isLockedIn, recentCompleted, telemetryReady]);
 
   const getDisplayName = (profile?: Profile): string | undefined => {
     if (!profile) return undefined;
@@ -312,6 +336,7 @@ export default function Home() {
     const qualityTrusted = Boolean(
       hubConnected &&
       telemetryReady &&
+      hardwareSeatOccupied &&
       c1001?.connected &&
       !c1001?.stale &&
       c1001?.trusted_vitals
@@ -334,13 +359,13 @@ export default function Home() {
           ? "LIVE"
           : "REACQUIRING",
     };
-  }, [hubConnected, hubStatus?.sensors?.c1001, telemetryReady]);
+  }, [hardwareSeatOccupied, hubConnected, hubStatus?.sensors?.c1001, telemetryReady]);
 
   const liveSurfaceTemperatureC = useMemo(() => {
     const mlx = hubStatus?.sensors?.mlx90614;
-    if (!hubConnected || !mlx?.connected || mlx?.valid === false || typeof mlx?.object_temperature_c !== "number" || !Number.isFinite(mlx.object_temperature_c)) return null;
+    if (!hubConnected || !hardwareSeatOccupied || !mlx?.connected || mlx?.valid === false || typeof mlx?.object_temperature_c !== "number" || !Number.isFinite(mlx.object_temperature_c)) return null;
     return Math.round(mlx.object_temperature_c * 10) / 10;
-  }, [hubConnected, hubStatus?.sensors?.mlx90614]);
+  }, [hardwareSeatOccupied, hubConnected, hubStatus?.sensors?.mlx90614]);
 
   const liveOccupancyLabel = typeof hubStatus?.sensors?.fsr?.occupied === "boolean"
     ? (hubStatus.sensors.fsr.occupied ? "Detected" : "Not detected")
@@ -360,23 +385,29 @@ export default function Home() {
     hubStatus?.camera?.baseline_ready === false
   );
 
-  const liveCameraLabel = cameraVerifying && !cameraCannotClassifyForUserFlow
-    ? "Visual confirmation in progress"
-    : cameraCannotClassifyForUserFlow ||
-      visualConfirmationCompleted ||
-      String(hubStatus?.camera?.user_verification_state ?? "").toUpperCase() === "COMPLETED"
-      ? "Visual confirmation completed"
-      : "Standby";
+  const liveCameraLabel = waitingForOccupant
+    ? "Standby"
+    : cameraVerifying && !cameraCannotClassifyForUserFlow
+      ? "Visual confirmation in progress"
+      : cameraCannotClassifyForUserFlow ||
+        visualConfirmationCompleted ||
+        String(hubStatus?.camera?.user_verification_state ?? "").toUpperCase() === "COMPLETED"
+        ? "Visual confirmation completed"
+        : "Standby";
 
   const rawMotionContext = String(hubStatus?.system?.motion_context ?? "").toLowerCase();
   const liveMovementLabel = !hubConnected
     ? "Unavailable"
-    : (hubStatus?.sensors?.c1001?.motion_artifact_active || hubStatus?.system?.evidence?.motion_artifact_possible || rawMotionContext.includes("motion") || rawMotionContext.includes("moving") || rawMotionContext.includes("movement"))
-      ? "Movement detected"
-      : "Stable";
+    : waitingForOccupant
+      ? "Waiting for occupant"
+      : (hubStatus?.sensors?.c1001?.motion_artifact_active || hubStatus?.system?.evidence?.motion_artifact_possible || rawMotionContext.includes("motion") || rawMotionContext.includes("moving") || rawMotionContext.includes("movement"))
+        ? "Movement detected"
+        : "Stable";
 
-  const liveFusionLabel = !telemetryReady
-    ? "ANALYZING"
+  const liveFusionLabel = waitingForOccupant
+    ? "WAITING FOR OCCUPANT"
+    : !telemetryReady
+      ? "ANALYZING"
     : hubSeatState === "emergency"
       ? "EMERGENCY"
       : hubSeatState === "warning"
@@ -404,6 +435,19 @@ export default function Home() {
     cameraVerificationWasActiveRef.current = false;
     setVisualConfirmationCompleted(false);
   }, [linkedSessionId]);
+
+
+  // Emergency UI always wins over screen-local native modals. iOS can refuse
+  // to present a second React Native Modal while another one is still fading
+  // out, so dismiss every Home sheet first and let the app-wide emergency
+  // overlay present after the native dismissal has completed.
+  useEffect(() => {
+    if (hubSeatState !== "emergency") return;
+    setLiveDetailSeatNo(null);
+    setEndSessionVisible(false);
+    setUatControlVisible(false);
+    setSummarySeatNo(null);
+  }, [hubSeatState]);
 
   const liveUpdatedSeconds = lastTelemetryAt === null ? null : Math.max(0, Math.floor((clockNow - lastTelemetryAt) / 1000));
 
@@ -646,15 +690,6 @@ export default function Home() {
 
   const linkedDisplayState = hardwareSeatNo ? getSeatState(hardwareSeatNo) : null;
 
-  useEffect(() => {
-    if (!hardwareSeatNo || linkedDisplayState === "emergency") return;
-    setDismissedSeats((previous) => {
-      if (!previous.has(hardwareSeatNo)) return previous;
-      const next = new Set(previous);
-      next.delete(hardwareSeatNo);
-      return next;
-    });
-  }, [hardwareSeatNo, linkedDisplayState]);
 
   const heroTranslateY = heroEntrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
   const heroScale = heroEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.985, 1] });
@@ -759,6 +794,7 @@ export default function Home() {
                     vitals={seatNo === hardwareSeatNo && activeSessions[seatNo] ? vitalSigns : undefined}
                     freshnessSeconds={seatNo === hardwareSeatNo && activeSessions[seatNo] ? liveUpdatedSeconds : null}
                     detailText={recentCompleted[seatNo] ? "Session saved · Tap to review" : (activeSessions[seatNo] && seatNo !== hardwareSeatNo ? "Session active · No sensor" : undefined)}
+                    monitoringLimited={seatNo === hardwareSeatNo && Boolean(activeSessions[seatNo]) && hardwareMonitoringLimited}
                     onPress={() => assignments[seatNo] ? showSeatDetails(seatNo) : router.push("/assign")}
                     onLongPress={seatNo === hardwareSeatNo && assignments[seatNo] && activeSessions[seatNo] ? openUatControl : undefined}
                     delayLongPress={seatNo === hardwareSeatNo && activeSessions[seatNo] ? UAT_RESEARCHER_LONG_PRESS_MS : undefined}
@@ -1033,6 +1069,7 @@ export default function Home() {
           name={liveDetailSeatNo ? (getDisplayName(assignments[liveDetailSeatNo]) ?? "Passenger") : "Passenger"}
           isHardwareSeat={liveDetailSeatNo === hardwareSeatNo}
           active={liveDetailSeatNo !== null && Boolean(activeSessions[liveDetailSeatNo])}
+          waitingForOccupant={liveDetailSeatNo === hardwareSeatNo && waitingForOccupant}
           updatedSeconds={liveDetailSeatNo === hardwareSeatNo ? liveUpdatedSeconds : null}
           fusionLabel={liveFusionLabel}
           heartRateBpm={vitalSigns.heartRateBpm}
@@ -1041,6 +1078,8 @@ export default function Home() {
           occupancyLabel={liveOccupancyLabel}
           movementLabel={liveMovementLabel}
           cameraLabel={liveCameraLabel}
+          monitoringLimited={liveDetailSeatNo === hardwareSeatNo && hardwareMonitoringLimited}
+          monitoringLimitedPersistent={liveDetailSeatNo === hardwareSeatNo && hardwareMonitoringLimitedPersistent}
           onClose={() => setLiveDetailSeatNo(null)}
         />
 

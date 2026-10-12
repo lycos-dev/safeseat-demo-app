@@ -17,6 +17,7 @@ type Props = {
   name: string;
   isHardwareSeat: boolean;
   active: boolean;
+  waitingForOccupant: boolean;
   updatedSeconds: number | null;
   fusionLabel: string;
   heartRateBpm: number | null;
@@ -25,6 +26,8 @@ type Props = {
   occupancyLabel: string;
   movementLabel: string;
   cameraLabel: string;
+  monitoringLimited?: boolean;
+  monitoringLimitedPersistent?: boolean;
   onClose: () => void;
 };
 
@@ -84,6 +87,7 @@ export default function LiveSeatDetailModal({
   name,
   isHardwareSeat,
   active,
+  waitingForOccupant,
   updatedSeconds,
   fusionLabel,
   heartRateBpm,
@@ -92,6 +96,8 @@ export default function LiveSeatDetailModal({
   occupancyLabel,
   movementLabel,
   cameraLabel,
+  monitoringLimited = false,
+  monitoringLimitedPersistent = false,
   onClose,
 }: Props) {
   const themes = useTheme();
@@ -137,13 +143,26 @@ export default function LiveSeatDetailModal({
             </View>
             <View style={[styles.livePill, (!active || !isHardwareSeat) && styles.livePillMuted]}>
               <View style={[styles.dot, (!active || !isHardwareSeat) && styles.dotMuted]} />
-              <Text style={[styles.liveText, (!active || !isHardwareSeat) && styles.liveTextMuted]}>{active && isHardwareSeat ? "ACTIVE" : "NO LIVE SENSOR"}</Text>
+              <Text style={[styles.liveText, (!active || !isHardwareSeat) && styles.liveTextMuted]}>{active && isHardwareSeat ? (waitingForOccupant ? "WAITING" : "ACTIVE") : "NO LIVE SENSOR"}</Text>
             </View>
           </View>
 
           {isHardwareSeat ? (
             <>
               <Text style={styles.freshness}>{freshness}</Text>
+              {monitoringLimited && !waitingForOccupant && seatState !== "warning" ? (
+                <View style={styles.limitedNotice}>
+                  <Ionicons name="information-circle-outline" size={18} color={themes.limited} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.limitedTitle, { color: themes.limited }]}>Monitoring limited</Text>
+                    <Text style={styles.limitedText}>
+                      {monitoringLimitedPersistent
+                        ? "Passenger has remained forward. Ask them to sit back normally to restore reliable posture monitoring."
+                        : "Ask the passenger to sit back normally to restore reliable posture monitoring."}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
               <View style={styles.readingGrid}>
                 <Reading label="Heart rate" value={heartRateBpm === null ? "—" : `${heartRateBpm} bpm`} />
                 <Reading label="Respiration rate" value={respirationRateBpm === null ? "—" : `${respirationRateBpm} /min`} />
@@ -204,6 +223,19 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   notice: { flexDirection: "row", gap: 12, padding: 14, borderRadius: 16, backgroundColor: themes.surfaceSoft, borderWidth: 1, borderColor: themes.divider },
   noticeTitle: { color: themes.text, fontSize: 14, lineHeight: 19, fontFamily: "Body-Bold" },
   noticeText: { color: themes.textSecondary, fontSize: 12, lineHeight: 18, fontFamily: "Body-Regular", marginTop: 3 },
+  limitedNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: themes.surfaceSoft,
+    borderWidth: 1,
+    borderColor: `${themes.limited}66`,
+  },
+  limitedTitle: { fontSize: 12, lineHeight: 15, fontFamily: "Body-Bold" },
+  limitedText: { color: themes.textSecondary, fontSize: 10.5, lineHeight: 15, marginTop: 2, fontFamily: "Body-Regular" },
   privacy: { color: themes.textMuted, fontSize: 11, lineHeight: 16, fontFamily: "Body-Regular" },
   closeButton: { minHeight: 46, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: themes.backgroundElement, borderWidth: 1, borderColor: themes.divider },
   closeText: { color: themes.text, fontSize: 14, fontFamily: "Body-Bold" },

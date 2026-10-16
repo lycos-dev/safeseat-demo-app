@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 export type SafeSeatFusionState = "SAFE" | "WARNING" | "EMERGENCY" | string;
 
 export type SafeSeatModelEvidence = {
@@ -173,7 +175,7 @@ export function getSafeSeatHubUrl(): string {
 }
 
 function isWebRuntime(): boolean {
-  return typeof window !== "undefined" && typeof navigator !== "undefined";
+  return Platform.OS === "web" && typeof window !== "undefined" && typeof navigator !== "undefined";
 }
 
 function isPrivateLocalAddress(url: string): boolean {
@@ -240,6 +242,40 @@ function webLocalAccessError(url: string): Error {
   );
 }
 
+// Informational diagnostics, throttled per endpoint. A powered-off or
+// unreachable hub is a normal offline state, not an Expo LogBox warning.
+// Never log sensor values,
+// occupant/contact data, request bodies, or credentials.
+const requestFailures = new Map<string, { message: string; loggedAt: number }>();
+export function logSafeSeatHubFailure(method: string, url: string, error: unknown): void {
+  let endpoint = "Main Hub";
+  try { const parsed = new URL(url); endpoint = `${parsed.origin}${parsed.pathname}`; } catch {}
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown request error";
+  const key = `${method} ${endpoint}`;
+  const previous = requestFailures.get(key);
+  const now = Date.now();
+  if (!previous || previous.message !== message || now - previous.loggedAt >= 30_000) {
+    console.info(`[SafeSeat/Hub] ${key} failed: ${message}`);
+    requestFailures.set(key, { message, loggedAt: now });
+  }
+}
+
+function logHubRecovery(method: string, url: string): void {
+  const parsed = new URL(url);
+  const key = `${method} ${parsed.origin}${parsed.pathname}`;
+  if (requestFailures.delete(key)) console.info(`[SafeSeat/Hub] ${key} recovered`);
+}
+
+function normalizeRequestError(error: unknown, signal: AbortSignal): unknown {
+  // Android fetch may report an aborted request as a generic Error with
+  // "Fetch request has been canceled", rather than an AbortError.
+  // Only our own timeout aborts these controllers; do not relabel other errors.
+  if (!signal.aborted) return error;
+  const timeoutError = new Error("Main Hub request timed out");
+  timeoutError.name = "AbortError";
+  return timeoutError;
+}
+
 async function fetchWithTimeout(url: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const localWebRequest = isWebRuntime() && isPrivateLocalAddress(url);
   const permission = localWebRequest
@@ -271,10 +307,12 @@ async function fetchWithTimeout(url: string, timeoutMs = REQUEST_TIMEOUT_MS): Pr
       }),
     );
   } catch (error) {
-    if (localWebRequest && !(error instanceof Error && error.name === "AbortError")) {
+    const requestError = normalizeRequestError(error, controller.signal);
+    logSafeSeatHubFailure("GET", url, requestError);
+    if (localWebRequest && !(requestError instanceof Error && requestError.name === "AbortError")) {
       throw webLocalAccessError(url);
     }
-    throw error;
+    throw requestError;
   } finally {
     clearTimeout(timeout);
   }
@@ -283,18 +321,20 @@ async function fetchWithTimeout(url: string, timeoutMs = REQUEST_TIMEOUT_MS): Pr
 export async function fetchSafeSeatStatus(
   baseUrl = getSafeSeatHubUrl(),
 ): Promise<SafeSeatStatusPayload> {
-  const response = await fetchWithTimeout(`${baseUrl}/api/v1/status`);
-
-  if (!response.ok) {
-    throw new Error(`SafeSeat Main Hub returned HTTP ${response.status}`);
+  const url = `${baseUrl}/api/v1/status`;
+  try {
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) throw new Error(`SafeSeat Main Hub returned HTTP ${response.status}`);
+    const payload = (await response.json()) as SafeSeatStatusPayload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("SafeSeat Main Hub returned an invalid status payload");
+    }
+    logHubRecovery("GET", url);
+    return payload;
+  } catch (error) {
+    logSafeSeatHubFailure("GET", url, error);
+    throw error;
   }
-
-  const payload = (await response.json()) as SafeSeatStatusPayload;
-  if (!payload || typeof payload !== "object") {
-    throw new Error("SafeSeat Main Hub returned an invalid status payload");
-  }
-
-  return payload;
 }
 
 export type SafeSeatControlledCameraMode = "upright" | "non_upright" | "real";
@@ -319,7 +359,7 @@ async function postFormWithTimeout(
     .join("&");
 
   try {
-    return await fetch(
+    const response = await fetch(
       url,
       webLocalRequestInit(url, {
         method: "POST",
@@ -331,6 +371,13 @@ async function postFormWithTimeout(
         signal: controller.signal,
       }),
     );
+    if (!response.ok) logSafeSeatHubFailure("POST", url, new Error(`HTTP ${response.status}`));
+    else logHubRecovery("POST", url);
+    return response;
+  } catch (error) {
+    const requestError = normalizeRequestError(error, controller.signal);
+    logSafeSeatHubFailure("POST", url, requestError);
+    throw requestError;
   } finally {
     clearTimeout(timeout);
   }
@@ -348,9 +395,18 @@ export async function setSafeSeatControlledCameraMode(
   baseUrl = getSafeSeatHubUrl(),
 ): Promise<boolean> {
   const statusResponse = await fetchWithTimeout(`${baseUrl}/api/v1/uat/injection`);
-  if (!statusResponse.ok) return false;
+  if (!statusResponse.ok) {
+    logSafeSeatHubFailure("GET", `${baseUrl}/api/v1/uat/injection`, new Error(`HTTP ${statusResponse.status}`));
+    return false;
+  }
 
-  const uat = (await statusResponse.json()) as SafeSeatUatInjectionStatus;
+  let uat: SafeSeatUatInjectionStatus;
+  try {
+    uat = (await statusResponse.json()) as SafeSeatUatInjectionStatus;
+  } catch (error) {
+    logSafeSeatHubFailure("GET", `${baseUrl}/api/v1/uat/injection`, error);
+    throw error;
+  }
   if (!uat?.active) return false;
 
   const response = await postFormWithTimeout(

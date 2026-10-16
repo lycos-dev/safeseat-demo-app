@@ -6,13 +6,36 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "extends": "base"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "extends": "base",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "extends": "base"
+    },
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBqQgglCpUg1hFxt6lM2BI2f5YI3mewlDA",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "safeseat-app.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "safeseat-app",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "safeseat-app.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1088522406363",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1088522406363:web:0f8fbe44e9fdb259497ffe",
+        "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-M33YE7MLY8",
+        "EXPO_PUBLIC_SAFESEAT_HUB_URL": "http://192.168.4.1",
+        "EXPO_PUBLIC_SAFESEAT_VEHICLE_ID": "SS-CAV-8151",
+        "EXPO_PUBLIC_SAFESEAT_VEHICLE_PLATE": "CAV 8151",
+        "EXPO_PUBLIC_SAFESEAT_VEHICLE_LABEL": "Toyota Vios Lumina Jade",
+        "EXPO_PUBLIC_SAFESEAT_HUB_ID": "SAFESEAT-MAIN-HUB",
+        "EXPO_PUBLIC_SMS_API_URL": "https://safeseat-sms-backend.vercel.app/api/send-sms"
+      }
     }
   },
   "submit": {

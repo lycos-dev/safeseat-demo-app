@@ -6,27 +6,36 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 
-function load(relative, mocks = {}) {
+function load(relative, mocks = {}, globals = {}) {
   const filename = path.resolve(__dirname, '..', relative);
   const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(code, { module, exports: module.exports, console,
-    require: (id) => Object.hasOwn(mocks, id) ? mocks[id] : require(id),
+  vm.runInNewContext(code, { module, exports: module.exports, console, ...globals,
+    require: (id) => {
+      if (Object.hasOwn(mocks, id)) return mocks[id];
+      if (id.startsWith('.') || id.startsWith('@/')) {
+        const target = id.startsWith('@/') ? path.resolve(__dirname, '../src', id.slice(2)) : path.resolve(path.dirname(filename), id);
+        const source = [target, `${target}.ts`, `${target}.tsx`].find(file => fs.existsSync(file) && fs.statSync(file).isFile());
+        if (source && /\.tsx?$/.test(source)) return load(source, mocks, globals);
+      }
+      return require(id);
+    },
   }, { filename });
   return module.exports;
 }
 
 const { getSeatDisplayState: state } = load('src/utils/monitoring-presentation.ts');
 
-test('unsaved-edit guard lets Stay cancel and resumes the exact back action on Discard', () => {
+test('unsaved-edit guard lets Stay cancel and resumes the exact back action on Discard', async () => {
   let prevention, buttons;
   const events = [];
   const { useUnsavedChangesGuard } = load('src/hooks/use-unsaved-changes-guard.ts', {
     'expo-router': { useNavigation: () => ({ dispatch: action => events.push(action) }) },
     'expo-router/react-navigation': { usePreventRemove: (enabled, callback) => { prevention = { enabled, callback }; } },
     'react-native': {
+      Platform: { OS: 'android' },
       Alert: { alert: (_title, _message, actions) => { buttons = actions; } },
       Keyboard: { dismiss: () => events.push('dismiss-keyboard') },
     },
@@ -43,7 +52,9 @@ test('unsaved-edit guard lets Stay cancel and resumes the exact back action on D
     assert.equal(stay.style, 'cancel');
     stay.onPress?.();
     assert.equal(events.length, 0);
+    prevention.callback({ data: { action } });
     buttons.find(button => button.text === 'Discard').onPress();
+    await new Promise(resolve => setImmediate(resolve));
     assert.equal(events[0], 'dismiss-keyboard');
     assert.equal(events[1], action);
     assert.equal(events.length, 2);
@@ -130,7 +141,7 @@ function authScreen(screen, firebaseAuth, saveUserProfile) {
     'expo-router': { useRouter: () => ({ replace: route => routes.push(route) }), useLocalSearchParams: () => ({}) },
     'expo-status-bar': {}, 'expo-haptics': { notificationAsync: async () => {}, NotificationFeedbackType: {} },
     'expo-secure-store': { setItemAsync: async (...args) => flags.push(args) },
-    '@expo/ui': { Icon: { select: value => value.android } }, '@expo/material-symbols/visibility.xml': {}, '@expo/material-symbols/visibility_off.xml': {},
+    '@/components/ui-bridge': { Icon: { select: value => value.android } }, '@expo/material-symbols/visibility.xml': {}, '@expo/material-symbols/visibility_off.xml': {},
     '@/constants/theme': { Spacing: {} }, '@/components/auth-background': 'Background',
     '@/components/button': 'Button', '@/components/text-input': 'TextInput',
     '../../firebase': { auth }, 'firebase/auth': firebaseAuth(auth),
@@ -163,6 +174,7 @@ test('signup retries failed profile setup without recreating Auth; rapid taps su
     updateProfile: async () => {},
   }), async () => { if (++saves === 1) throw { code: 'unavailable' }; });
   screen.fill('Full name', 'Owner'); screen.fill('name@example.com', accountUser.email);
+  screen.fill('e.g. +63 912 345 6789', '09123456789');
   screen.fill('At least 6 characters', 'password'); screen.fill('Re-enter your password', 'password');
   screen.submit(); screen.submit(); await screen.settle();
   assert.equal(creates, 1); assert.equal(saves, 1);
@@ -179,11 +191,13 @@ test('duplicate-email signup offers login and never writes an existing account p
     createUserWithEmailAndPassword: async () => { throw { code: 'auth/email-already-in-use' }; },
   }), async () => { saves++; });
   screen.fill('Full name', 'Owner'); screen.fill('name@example.com', accountUser.email);
+  screen.fill('e.g. +63 912 345 6789', '09123456789');
   screen.fill('At least 6 characters', 'password'); screen.fill('Re-enter your password', 'password');
   screen.submit(); await screen.settle();
   assert.equal(saves, 0); assert.equal(screen.flags.length, 0);
   assert.equal(screen.alerts[0][0], 'Account already exists');
   screen.alerts[0][2].find(button => button.text === 'Log in').onPress();
+  await screen.settle();
   assert.equal(screen.routes[0].params.email, accountUser.email);
 });
 
@@ -338,4 +352,126 @@ test('old preferences default the indicator on; rapid changes persist together a
   assert.equal(saved.prototypeIndicator, false); assert.equal(saved.themeMode, 'dark'); assert.equal(saved.useMetric, false);
   ({ h, Provider } = create()); h.render(Provider); await h.effects(); value = h.render(Provider);
   assert.equal(value.prototypeIndicator, false); assert.equal(value.useMetric, false);
+});
+
+function hubHarness(os = 'android', response = { ok: true, json: async () => ({ telemetry_ready: true }) }, overrides = {}) {
+  const requests = [], logs = [], warnings = [];
+  let reply = response;
+  const hub = load('src/services/safeseat-hub.ts', { 'react-native': { Platform: { OS: os } } }, {
+    Error, URL, AbortController, setTimeout, clearTimeout,
+    process: { env: {} }, window: {}, navigator: {},
+    console: { warn: text => warnings.push(text), info: text => logs.push(text) },
+    fetch: async (url, init) => { requests.push({ url, init }); if (reply instanceof Error) throw reply; return reply; },
+    ...overrides,
+  });
+  return { hub, requests, logs, warnings, reply: value => { reply = value; } };
+}
+
+test('native hub request uses the local endpoint without browser-only flags even with window/navigator globals', async () => {
+  const { hub, requests } = hubHarness();
+  assert.equal(await hub.getSafeSeatLocalNetworkPermissionState(), 'not-web');
+  assert.equal((await hub.fetchSafeSeatStatus()).telemetry_ready, true);
+  assert.equal(requests[0].url, 'http://192.168.4.1/api/v1/status');
+  assert.equal(requests[0].init.mode, undefined);
+  assert.equal(requests[0].init.targetAddressSpace, undefined);
+});
+
+test('browser hub requests retain local-network handling', async () => {
+  const { hub, requests } = hubHarness('web');
+  await hub.fetchSafeSeatStatus();
+  assert.equal(requests[0].init.mode, 'cors');
+  assert.equal(requests[0].init.targetAddressSpace, 'local');
+});
+
+test('hub failures propagate, repeated failures are throttled, and recovery is logged', async () => {
+  const h = hubHarness('android', new TypeError('Network request failed'));
+  await assert.rejects(h.hub.fetchSafeSeatStatus(), /Network request failed/);
+  await assert.rejects(h.hub.fetchSafeSeatStatus(), /Network request failed/);
+  assert.equal(h.logs.length, 1);
+  h.reply({ ok: true, json: async () => ({ telemetry_ready: true }) });
+  await h.hub.fetchSafeSeatStatus();
+  assert.match(h.logs[1], /recovered/);
+  h.reply({ ok: false, status: 503 });
+  await assert.rejects(h.hub.fetchSafeSeatStatus(), /HTTP 503/);
+  h.reply({ ok: true, json: async () => [] });
+  await assert.rejects(h.hub.fetchSafeSeatStatus(), /invalid status payload/);
+  assert.equal(h.warnings.length, 0, 'Handled failures must not open LogBox');
+});
+
+test('controlled camera commands remain gated by the hub UAT flag', async () => {
+  const h = hubHarness('android', { ok: true, json: async () => ({ active: false }) });
+  assert.equal(await h.hub.setSafeSeatControlledCameraMode('upright'), false);
+  assert.equal(h.requests.length, 1);
+  h.reply({ ok: true, json: async () => ({ active: true }) });
+  assert.equal(await h.hub.setSafeSeatControlledCameraMode('non_upright'), true);
+  const post = h.requests.at(-1);
+  assert.equal(post.init.method, 'POST');
+  assert.equal(post.init.body, 'camera_mode=non_upright');
+});
+
+test('every app XML icon is preloaded and resolves to a local file for the native renderer', async () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/services/icon-assets.ts'), 'utf8');
+  const modules = [...source.matchAll(/require\("(@expo\/material-symbols\/\w+\.xml)"\)/g)].map(match => match[1]);
+  let downloads = 0;
+  const mocks = Object.fromEntries(modules.map((name, index) => [name, index + 1]));
+  mocks['expo-asset'] = { Asset: { fromModule: id => ({ downloadAsync: async () => {
+    downloads++; return { localUri: `file:///cache/${id}.xml` };
+  } }) } };
+  const icons = load('src/services/icon-assets.ts', mocks);
+  await Promise.all([icons.preloadAndroidIcons(), icons.preloadAndroidIcons()]);
+  assert.equal(downloads, modules.length);
+  for (const id of icons.ANDROID_ICON_MODULES) assert.equal(icons.getAndroidIconSource(id).uri, `file:///cache/${id}.xml`);
+  const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+  for (const file of walk(path.resolve(__dirname, '../src')).filter(file => /\.tsx$/.test(file))) {
+    for (const match of fs.readFileSync(file, 'utf8').matchAll(/@expo\/material-symbols\/\w+\.xml/g)) {
+      assert.ok(modules.includes(match[0]), `Missing preload: ${match[0]}`);
+    }
+  }
+});
+
+test('Android icon Host reserves dimensions and the bridge passes local XML without CSS tint', () => {
+  const react = require('react');
+  const { Host, Icon } = load('src/components/ui-bridge-runtime.tsx', {
+    react, 'react/jsx-runtime': require('react/jsx-runtime'),
+    'react-native': { Platform: { OS: 'android' } },
+    '@expo/vector-icons/Ionicons': 'Ionicons',
+    '@expo/ui': { Host: 'NativeHost', Icon: Object.assign(() => null, { select: options => options.android }) },
+    '@/services/icon-assets': { getAndroidIconSource: id => ({ uri: `file:///cache/${id}.xml` }) },
+  });
+  const host = Host({ children: react.createElement(Icon, { name: 3, size: 24 }) });
+  assert.equal(host.props.matchContents, true);
+  assert.equal(host.props.style[0].width, 24);
+  assert.equal(host.props.style[0].height, 24);
+  const icon = Icon({ name: 3, color: 'currentColor' });
+  assert.equal(icon.props.name.uri, 'file:///cache/3.xml');
+  assert.equal(icon.props.color, undefined);
+  assert.equal(Icon.select({ ios: 'eye.fill', android: 3 }), 3);
+});
+
+
+test('Android cancellation from our timeout is a quiet, readable offline error', async () => {
+  let fireTimeout;
+  const h = hubHarness('android', undefined, {
+    setTimeout: callback => { fireTimeout = callback; return 1; },
+    clearTimeout: () => {},
+    fetch: async () => {
+      fireTimeout();
+      throw new Error('fetch failed: Fetch request has been canceled');
+    },
+  });
+  await assert.rejects(h.hub.fetchSafeSeatStatus(), error =>
+    error.name === 'AbortError' && error.message === 'Main Hub request timed out');
+  assert.equal(h.warnings.length, 0);
+  assert.equal(h.logs.length, 1);
+  assert.match(h.logs[0], /Main Hub request timed out/);
+});
+
+test('native cancellation without our timeout keeps its original cause and stays out of LogBox', async () => {
+  const h = hubHarness('android', new Error('Fetch request has been canceled'));
+  await assert.rejects(h.hub.fetchSafeSeatStatus(), error =>
+    error.name === 'Error' && error.message === 'Fetch request has been canceled');
+  assert.equal(h.warnings.length, 0);
+  h.reply({ ok: true, json: async () => ({ telemetry_ready: true }) });
+  assert.equal((await h.hub.fetchSafeSeatStatus()).telemetry_ready, true);
+  assert.match(h.logs.at(-1), /recovered/);
 });

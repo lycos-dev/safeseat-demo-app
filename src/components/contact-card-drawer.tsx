@@ -1,4 +1,5 @@
 import ThemedHost from "@/components/themed-host";
+import editXml from "@expo/material-symbols/edit.xml";
 import closeXml from "@expo/material-symbols/close.xml";
 import chatXml from "@expo/material-symbols/chat.xml";
 import callXml from "@expo/material-symbols/call.xml";
@@ -82,7 +83,7 @@ export default function ContactCardDrawer({ visible, onClose, name, number, orde
                             <Column alignment="center" spacing={4}>
                                 <Icon name={Icon.select({
                                     ios: "pencil",
-                                    android: chatXml
+                                    android: editXml
                                 })} size={24} color={themes.text} />
                                 <Text textStyle={{ fontSize: 14, fontWeight: "600" }}>Edit</Text>
                             </Column>

@@ -6,7 +6,7 @@ import { auth } from "@/firebase";
 import { saveUserProfile } from "@/services/user-profile";
 export { ErrorBoundary } from "expo-router";
 
-import { useColorScheme, View } from "react-native";
+import { Platform, useColorScheme, View } from "react-native";
 
 import {
 	Inter_400Regular,
@@ -18,22 +18,27 @@ import {
 	useFonts,
 } from "@expo-google-fonts/inter";
 
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { preloadAndroidIcons } from "@/services/icon-assets";
+
 import * as SplashScreen from "expo-splash-screen";
 // ⚠️ FIXED: Removed the broken "@expo/ui/swift-ui/modifiers" import
 
 // Keep the splash screen visible while fonts and auth initialize
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch((error) => console.warn("[SafeSeat/Startup] Splash hold failed", error));
 
 import * as SystemUI from 'expo-system-ui';
 import { BannerProvider } from "@/hooks/banner-context";
 
 // Force the underlying native iOS frame window to change colors
-SystemUI.setBackgroundColorAsync("#101322")
+void SystemUI.setBackgroundColorAsync("#101322").catch((error) => console.warn("[SafeSeat/Startup] Background setup failed", error));
 
 
 export default function RootLayout() {
 	const colorScheme = useColorScheme();
 	const [loaded, error] = useFonts({
+        ...Ionicons.font,
+        ...MaterialIcons.font,
 		"Heading-Font": Inter_600SemiBold,
 		"Logo-Font": Inter_900Black,
 		"Body-Regular": Inter_400Regular,
@@ -43,6 +48,29 @@ export default function RootLayout() {
 		"Condensed-Regular": Inter_400Regular,
 		"Condensed-Regular-Italic": Inter_400Regular_Italic
 	});
+
+    const [iconsLoaded, setIconsLoaded] = useState(Platform.OS !== "android");
+    const [iconsError, setIconsError] = useState<Error | null>(null);
+    useEffect(() => {
+        if (Platform.OS !== "android") return;
+        let active = true;
+        void preloadAndroidIcons().then(() => {
+            if (active) setIconsLoaded(true);
+        }).catch((error) => {
+            console.error("[SafeSeat/Icons] Asset preload failed", error);
+            if (active) setIconsError(error instanceof Error ? error : new Error(String(error)));
+        });
+        return () => { active = false; };
+    }, []);
+    const startupError = error || iconsError;
+    const assetsReady = loaded && iconsLoaded;
+    useEffect(() => {
+        if (startupError) {
+            console.error("[SafeSeat/Startup] Required assets failed", startupError);
+            void SplashScreen.hideAsync().catch(() => undefined);
+            throw startupError;
+        }
+    }, [startupError]);
 
 	const router = useRouter();
 	const segments = useSegments();
@@ -81,15 +109,15 @@ export default function RootLayout() {
 
 	// 2. Control when the native splash screen hides safely
 	useEffect(() => {
-		if (loaded && !authLoading) {
-			SplashScreen.hideAsync();
+		if (startupError || (assetsReady && !authLoading)) {
+			void SplashScreen.hideAsync().catch((error) => console.warn("[SafeSeat/Startup] Splash hide failed", error));
 		}
-	}, [loaded, authLoading]);
+	}, [assetsReady, authLoading, startupError]);
 
 	// 3. Complete Navigation Authentication Guard Logic
 	useEffect(() => {
 		// Wait until both fonts are ready and auth state has been parsed from SecureStore
-		if (!loaded || authLoading) return;
+		if (!assetsReady || authLoading || startupError) return;
 
 		const inAuthGroup = segments[0] === "(auth)";
 
@@ -100,10 +128,10 @@ export default function RootLayout() {
 			// User IS logged in but accidentally went back to splash/login -> force them back inside
 			router.replace("/(tabs)/home");
 		}
-	}, [segments, loaded, authLoading, hasSession]);
+	}, [segments, assetsReady, authLoading, hasSession, startupError]);
 
 	// Prevent rendering stack screens if basic system elements aren't initialized yet
-	if (!loaded || authLoading) {
+	if (!assetsReady || authLoading) {
 		return null;
 	}
 

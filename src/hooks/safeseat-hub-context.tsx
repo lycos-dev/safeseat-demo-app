@@ -237,8 +237,10 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    let stopped = false;
     const scheduleNext = (delay: number) => {
       clearTimer();
+      if (stopped || appStateRef.current !== "active") return;
       pollTimerRef.current = setTimeout(async () => {
         if (appStateRef.current !== "active") {
           scheduleNext(DISCONNECTED_POLL_MS);
@@ -265,11 +267,16 @@ export function SafeSeatHubProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      stopped = true;
       mountedRef.current = false;
       clearTimer();
       subscription.remove();
     };
   }, [refresh]);
+
+  useEffect(() => {
+    console.info(`[SafeSeat/Hub] connection=${connectionState} telemetryReady=${Boolean(connectionState === "connected" && status?.telemetry_ready)}`);
+  }, [connectionState, status?.telemetry_ready]);
 
   const connected = connectionState === "connected";
   const rawSeatState = useMemo<SafeSeatSeatState>(

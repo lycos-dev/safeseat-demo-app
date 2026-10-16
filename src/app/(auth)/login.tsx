@@ -143,6 +143,7 @@ export default function Login() {
                       >
                         <Host>
                           <Icon
+                            color={Platform.OS === "android" ? "#F8FAFC" : undefined}
                             name={Icon.select({
                               ios: passwordVisible ? "eye.slash.fill" : "eye.fill",
                               android: passwordVisible ? visibilityOffXml : visibilityXml,

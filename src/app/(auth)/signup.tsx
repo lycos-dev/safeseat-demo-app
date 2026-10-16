@@ -128,6 +128,7 @@ export default function Signup() {
     >
       <Host>
         <Icon
+          color={Platform.OS === "android" ? "#F8FAFC" : undefined}
           name={Icon.select({
             ios: visible ? "eye.slash.fill" : "eye.fill",
             android: visible ? visibilityOffXml : visibilityXml,

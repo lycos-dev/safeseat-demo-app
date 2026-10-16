@@ -1,3 +1,4 @@
+import { getAndroidIconSource } from "@/services/icon-assets";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ExpoUI from "@expo/ui";
 import React from "react";
@@ -63,7 +64,16 @@ function normalizeSymbol(name: unknown): string {
 
 export function Host(props: any) {
   if (!IS_WEB) {
-    return React.createElement((ExpoUI as any).Host, props, props.children);
+    // Compose does not intrinsically size an unmeasured React Native Host.
+    // Reserve the existing icon size while its native painter loads.
+    const children = React.Children.toArray(props.children);
+    const child = children.length === 1 ? children[0] : null;
+    const iconSize = React.isValidElement<any>(child) && child.type === Icon ? (child.props as { size?: number }).size ?? 20 : null;
+    const nativeProps = Platform.OS === "android" && iconSize !== null
+      ? { ...props, matchContents: props.matchContents ?? true,
+          style: [{ width: iconSize, height: iconSize }, props.style] }
+      : props;
+    return React.createElement((ExpoUI as any).Host, nativeProps, props.children);
   }
   return <View style={props.style}>{props.children}</View>;
 }
@@ -74,7 +84,7 @@ export function Icon({ name, size = 20, color, style, ...rest }: any) {
     // "currentColor" with "Unknown color". Omit the tint entirely when
     // callers do not provide a React Native ColorValue so the native icon can
     // inherit its Host content color safely.
-    const nativeProps: any = { name, size, style, ...rest };
+    const nativeProps: any = { name: Platform.OS === "android" ? getAndroidIconSource(name) : name, size, style, ...rest };
     if (color != null && color !== "currentColor") nativeProps.color = color;
     return React.createElement((ExpoUI as any).Icon, nativeProps);
   }
@@ -89,7 +99,7 @@ export function Icon({ name, size = 20, color, style, ...rest }: any) {
   );
 }
 
-(Icon as any).select = (options: any) => {
+Icon.select = (options: { ios?: any; android?: any; web?: any }) => {
   if (IS_WEB) return options?.web ?? options?.ios ?? options?.android;
   const nativeSelect = (ExpoUI as any).Icon?.select;
   return typeof nativeSelect === "function"

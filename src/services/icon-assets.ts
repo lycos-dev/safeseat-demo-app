@@ -23,6 +23,35 @@ export const ANDROID_ICON_MODULES: number[] = [
   require("@expo/material-symbols/warning.xml"),
 ];
 
+
+const ANDROID_IONICON_FALLBACKS = [
+  "add",
+  "car-sport",
+  "call",
+  "chatbubble",
+  "checkmark",
+  "ellipse",
+  "close",
+  "car",
+  "pencil",
+  "person",
+  "people",
+  "home",
+  "lock-open",
+  "settings",
+  "megaphone",
+  "chevron-expand",
+  "eye",
+  "eye-off",
+  "warning",
+] as const;
+
+export function getAndroidIconFallbackName(name: unknown): unknown {
+  if (typeof name !== "number") return name;
+  const index = ANDROID_ICON_MODULES.indexOf(name);
+  return index >= 0 ? ANDROID_IONICON_FALLBACKS[index] : "ellipse-outline";
+}
+
 const localSources = new Map<number, { uri: string }>();
 let preload: Promise<void> | undefined;
 

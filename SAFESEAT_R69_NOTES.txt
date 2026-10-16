@@ -1,0 +1,17 @@
+SafeSeat R69 patch-only UI fixes
+
+Apply on top of R68/current app.
+
+Changed files:
+- src/app/(tabs)/_layout.tsx
+- src/app/(tabs)/assign/index.tsx
+- src/app/(tabs)/settings/index.tsx
+- src/components/escalation-window-control.tsx
+
+Fixes:
+1. iOS bottom tab: removes double-counted bottom safe-area while retaining the responsive tab-bar inset itself. Android 3-button navigation remains protected.
+2. Seats: restores a larger responsive car/seat map while keeping page scrolling disabled.
+3. Settings sticky section tabs: replaces the problematic native sticky-header interaction with a real fixed overlay copy after scrolling, so Account / Alerts / History / System remain clickable.
+4. Driver SMS Delay: slider now supports finger dragging. It still snaps to the supported 20s / 25s / 30s delay choices and keeps tap/accessibility support.
+
+Syntax check: all four modified TSX files passed TypeScript transpile syntax validation.

@@ -1,0 +1,14 @@
+SafeSeat R74 — Sticky Info-Only PATCH ONLY
+
+Updated file:
+- src/app/(tabs)/settings/index.tsx
+
+Behavior:
+- Account / Alerts / History / System remains clickable in its normal, non-sticky position.
+- Once the bar reaches the top and becomes sticky, it is display-only on BOTH iOS and Android.
+- The active/green section indicator still updates while scrolling.
+- Android keeps its pinned visual copy while sticky, but that copy ignores touches completely.
+- iOS keeps its native sticky header, but touch input is disabled only while it is stuck at the top.
+- No Driver SMS slider changes.
+- R75: removed bottom safe-area edge + oversized bottom padding (fixes gray block behind bottom tab).
+- R75: Android active shortcut pill keeps rounded green box (constant border, overflow hidden, no hardware-texture layer).

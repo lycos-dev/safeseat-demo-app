@@ -28,7 +28,7 @@ export default function MiniTab({ values, selectedIndex, onChange, style }: Mini
             ]}
             onPress={() => onChange(index)}
           >
-            <Text style={[styles.text, isSelected && styles.selectedText]}>{item}</Text>
+            <Text numberOfLines={2} style={[styles.text, isSelected && styles.selectedText]}>{item}</Text>
           </Pressable>
         );
       })}
@@ -48,7 +48,7 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   },
   tab: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 42,
     paddingVertical: spacing.one,
     paddingHorizontal: spacing.one,
     borderRadius: spacing.edge,
@@ -67,6 +67,8 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     fontSize: fontsize.button,
     color: themes.textSecondary,
     fontFamily: "Body-Medium",
+    textAlign: "center",
+    lineHeight: 20,
   },
   selectedText: {
     color: themes.primaryBttn,

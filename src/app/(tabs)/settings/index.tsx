@@ -13,7 +13,7 @@ import { getLocalValue, setLocalValue, deleteLocalValue } from "@/services/local
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { confirmAction } from "../../../utils/platform-dialog";
 
@@ -42,7 +42,10 @@ export default function Settings() {
   const sectionY = useRef<Record<SectionKey, number>>({ account: 0, alerts: 0, history: 0, system: 0 });
   const sectionsStartY = useRef(0);
   const stickyHeight = useRef(62);
-  const bottomPad = 100 + insets.bottom;
+  const shortcutY = useRef(0);
+  const manualSectionRef = useRef<SectionKey | null>(null);
+  const manualSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bottomPad = 24;
   const { connected: hubConnected, telemetryReady, seatState: hubSeatState } = useSafeSeatHub();
   const { startGuide } = useDriverGuide();
 
@@ -50,6 +53,8 @@ export default function Settings() {
   const [userPhone, setUserPhone] = useState("Not set");
   const [isLockedIn, setIsLockedIn] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionKey>("account");
+  const [stickyActive, setStickyActive] = useState(false);
+  const [sliderInteracting, setSliderInteracting] = useState(false);
   const [changePhoneVisible, setChangePhoneVisible] = useState(false);
   const [changePassVisible, setChangePassVisible] = useState(false);
 
@@ -64,7 +69,6 @@ export default function Settings() {
     escalationWindowSeconds, setEscalationWindowSeconds,
     useMetric, setUseMetric,
     themeMode, setThemeMode,
-    prototypeIndicator, setPrototypeIndicator, loading: preferencesLoading,
   } = useUserPreferences();
 
   const loadAllUserData = useCallback(async () => {
@@ -88,13 +92,27 @@ export default function Settings() {
 
   const scrollTo = (key: SectionKey) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+    manualSectionRef.current = key;
+    if (manualSectionTimerRef.current) clearTimeout(manualSectionTimerRef.current);
     setActiveSection(key);
     const target = sectionsStartY.current + sectionY.current[key] - stickyHeight.current - 10;
-    scrollRef.current?.scrollTo({ y: Math.max(0, target), animated: true });
+    scrollRef.current?.scrollTo({ y: Math.max(0, target), animated: false });
+    manualSectionTimerRef.current = setTimeout(() => {
+      manualSectionRef.current = null;
+      manualSectionTimerRef.current = null;
+    }, 180);
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const localY = event.nativeEvent.contentOffset.y + stickyHeight.current + 22 - sectionsStartY.current;
+    const scrollY = event.nativeEvent.contentOffset.y;
+    setStickyActive(scrollY >= Math.max(0, shortcutY.current - 1));
+
+    if (manualSectionRef.current) {
+      setActiveSection(manualSectionRef.current);
+      return;
+    }
+
+    const localY = scrollY + stickyHeight.current + 22 - sectionsStartY.current;
     const systemY = sectionY.current.system;
     const historyY = sectionY.current.history;
     const alertsY = sectionY.current.alerts;
@@ -152,10 +170,24 @@ export default function Settings() {
     }
   };
 
-  const shortcut = (label: string, key: SectionKey) => {
+  const shortcut = (label: string, key: SectionKey, interactive = true) => {
     const selected = activeSection === key;
+
+    if (!interactive) {
+      return (
+        <View
+          key={key}
+          accessibilityRole="text"
+          style={[styles.shortcut, selected && styles.shortcutActive]}
+        >
+          <Text style={[styles.shortcutText, selected && styles.shortcutTextActive]} numberOfLines={1}>{label}</Text>
+        </View>
+      );
+    }
+
     return (
       <Pressable
+        key={key}
         onPress={() => scrollTo(key)}
         accessibilityRole="button"
         accessibilityState={{ selected }}
@@ -167,14 +199,17 @@ export default function Settings() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
         onScroll={handleScroll}
         scrollEventThrottle={32}
+        scrollEnabled={!sliderInteracting}
+        directionalLockEnabled
+        stickyHeaderIndices={Platform.OS === "ios" ? [1] : undefined}
+        keyboardShouldPersistTaps="always"
       >
         <View style={styles.headerShell}>
           <View style={styles.headerBlock}>
@@ -185,8 +220,12 @@ export default function Settings() {
         </View>
 
         <View
+          pointerEvents={Platform.OS === "ios" && stickyActive ? "none" : "auto"}
           style={styles.stickyShortcutShell}
-          onLayout={(event) => { stickyHeight.current = event.nativeEvent.layout.height; }}
+          onLayout={(event) => {
+            stickyHeight.current = event.nativeEvent.layout.height;
+            shortcutY.current = event.nativeEvent.layout.y;
+          }}
         >
           <View style={styles.shortcutDock}>
             {shortcut("Account", "account")}
@@ -217,7 +256,12 @@ export default function Settings() {
               <SettingSwitch name="Driver Emergency SMS" iconName="chatbubble-ellipses-outline" value={emergencyEscalation} onValueChange={(v) => void setEmergencyEscalation(v)} isLast />
             </View>
             <Text style={styles.note}>SMS applies to Driver emergencies only.</Text>
-            <EscalationWindowControl value={escalationWindowSeconds} enabled={emergencyEscalation} onValueChange={(v) => void setEscalationWindowSeconds(v)} />
+            <EscalationWindowControl
+              value={escalationWindowSeconds}
+              enabled={emergencyEscalation}
+              onInteractionChange={setSliderInteracting}
+              onValueChange={(v) => void setEscalationWindowSeconds(v)}
+            />
             <View style={styles.settingGroup}>
               <SettingPageItem name="Profiles & Emergency Contacts" iconName="people-outline" onPress={() => router.push("/(tabs)/everyone" as any)} showChevron isLast />
             </View>
@@ -245,11 +289,6 @@ export default function Settings() {
               <SettingSwitch name="Use Metric Units" iconName="speedometer-outline" value={useMetric} onValueChange={(v) => void setUseMetric(v)} isLast />
             </View>
 
-            <View style={styles.settingGroup}>
-              <SettingSwitch name="Sensor setup card" iconName="hardware-chip-outline" value={prototypeIndicator} enabled={!preferencesLoading} onValueChange={(v) => {
-                void setPrototypeIndicator(v).catch(() => Alert.alert("Could not save setting", "Please try again before closing the app."));
-              }} isLast />
-            </View>
 
             <View style={styles.settingGroup}>
               <SettingPageItem name="System Diagnostic" iconName="pulse-outline" value={hubConnected ? (telemetryReady ? "Live" : "Warming") : "Offline"} onPress={() => router.push("/(tabs)/settings/diagnostics" as any)} showChevron />
@@ -278,6 +317,21 @@ export default function Settings() {
         </View>
       </ScrollView>
 
+      {Platform.OS === "android" && stickyActive ? (
+        <View
+          pointerEvents="none"
+          collapsable={false}
+          style={styles.floatingShortcutShell}
+        >
+          <View style={styles.floatingShortcutDock}>
+            {shortcut("Account", "account", false)}
+            {shortcut("Alerts", "alerts", false)}
+            {shortcut("History", "history", false)}
+            {shortcut("System", "system", false)}
+          </View>
+        </View>
+      ) : null}
+
       <ChangePhoneModal visible={changePhoneVisible} onClose={() => setChangePhoneVisible(false)} onSuccess={() => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setChangePhoneVisible(false); void loadAllUserData(); }} />
       <ChangePasswordModal visible={changePassVisible} onClose={() => setChangePassVisible(false)} onSuccess={() => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setChangePassVisible(false); void loadAllUserData(); }} />
     </SafeAreaView>
@@ -294,12 +348,34 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   pageSubhead: { color: themes.textSecondary, fontSize: fontsize.body, lineHeight: 21, fontFamily: "Body-Regular" },
 
   stickyShortcutShell: {
-    zIndex: 50,
-    elevation: 20,
     backgroundColor: themes.background,
     paddingHorizontal: spacing.two,
     paddingTop: 5,
     paddingBottom: 9,
+  },
+  floatingShortcutShell: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10000,
+    elevation: 100,
+    backgroundColor: themes.background,
+    paddingHorizontal: spacing.two,
+    paddingTop: 5,
+    paddingBottom: 9,
+  },
+  floatingShortcutDock: {
+    flexDirection: "row",
+    gap: 6,
+    padding: 5,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: themes.divider,
+    backgroundColor: themes.backgroundElevated,
+    position: "relative",
+    zIndex: 10001,
+    elevation: 101,
   },
   shortcutDock: {
     flexDirection: "row",
@@ -320,12 +396,14 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     minHeight: 38,
     paddingHorizontal: 5,
     borderRadius: 13,
+    borderWidth: 1,
+    borderColor: "transparent",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
   shortcutActive: {
     backgroundColor: themes.primarySoft,
-    borderWidth: 1,
     borderColor: themes.primaryBorder,
   },
   shortcutText: { color: themes.textSecondary, fontSize: 11.5, lineHeight: 16, textAlign: "center", fontFamily: "Body-Bold" },

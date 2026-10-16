@@ -80,7 +80,7 @@ export default function Assign() {
   const startingRef = useRef(false);
   const insets = useSafeAreaInsets();
   const { height: viewportHeight, width: viewportWidth } = useWindowDimensions();
-  const carMapHeight = Math.max(360, Math.min(560, viewportHeight * 0.56));
+  const carMapHeight = Math.max(360, Math.min(500, viewportHeight * 0.56));
   const [stickyActionHeight, setStickyActionHeight] = useState(0);
   const bottomPad = stickyActionHeight + spacing.one;
   const {
@@ -458,11 +458,12 @@ export default function Assign() {
   return (
     <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad + spacing.one }]}
         showsVerticalScrollIndicator={false}
         bounces={false}
         alwaysBounceVertical={false}
         overScrollMode="never"
+        scrollEnabled={false}
       >
         <View style={styles.container}>
           <View style={styles.headerBlock}>
@@ -792,7 +793,7 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     gap: spacing.one + 4,
   },
   headerBlock: {
-    gap: 3,
+    gap: 2,
   },
   titleRow: {
     flexDirection: "row",
@@ -807,14 +808,14 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     fontFamily: "Body-Bold",
   },
   pageHeader: {
-    fontSize: 31,
+    fontSize: 29,
     fontFamily: "Logo-Font",
     color: themes.text,
   },
   pageSubhead: {
     color: themes.textSecondary,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 20,
     fontFamily: "Body-Regular",
   },
   sessionPill: {
@@ -895,10 +896,10 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(117,184,255,0.18)",
     shadowColor: themes.shadow,
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   carBackgroundImage: {
     position: "absolute",
@@ -911,21 +912,21 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   },
   frontRow: {
     position: "absolute",
-    top: "22%",
+    top: "21%",
     left: 52,
     right: 52,
     gap: spacing.one + 4,
     flexDirection: "row",
-    height: "27%",
+    height: "28%",
   },
   backRow: {
     position: "absolute",
-    top: "61%",
+    top: "59.5%",
     left: 14,
     right: 14,
     gap: spacing.one,
     flexDirection: "row",
-    height: "26%",
+    height: "25.5%",
   },
   stickyActionWrap: {
     position: "absolute",
@@ -938,10 +939,10 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: themes.divider,
     shadowColor: themes.shadow,
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: -8 },
-    elevation: 12,
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 3,
   },
   stickyActionInner: {
     position: "relative",

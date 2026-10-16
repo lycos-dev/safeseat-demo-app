@@ -1,0 +1,10 @@
+SafeSeat R72 — Sticky Clickable PATCH ONLY
+
+Updated file:
+- src/app/(tabs)/settings/index.tsx
+
+Fix:
+- Keeps Account / Alerts / History / System sticky at the top.
+- Removes the full-screen transparent wrapper that was interfering with Android hit-testing.
+- The sticky menu itself is now the top-level absolute overlay with proper zIndex/elevation.
+- No slider behavior or other Settings logic changed.

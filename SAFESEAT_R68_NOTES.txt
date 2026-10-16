@@ -1,0 +1,13 @@
+SafeSeat R68 Final UI Touchups PATCH ONLY
+
+Updated files:
+- src/app/(tabs)/_layout.tsx
+- src/app/(tabs)/assign/index.tsx
+- src/components/assign-card.tsx
+- src/components/mini-tab.tsx
+
+Changes:
+1. Bottom tab bar now respects bottom safe area better and uses softer shadow/elevation to remove the heavy floating gray look.
+2. Seats screen tuned for APK/mobile fit: smaller seat map, no vertical scrolling, lighter container shadows.
+3. Seat cards on Assign screen now remove the heavy text shadow and use lighter card shadows.
+4. Profiles mini-tab text is centered so "Emergency Contacts" sits properly in the right segment.

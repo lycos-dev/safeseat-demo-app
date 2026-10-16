@@ -1,0 +1,17 @@
+SafeSeat R71 — Android Sticky Tabs + iOS Slider Gesture Fix
+PATCH ONLY — apply over R70.
+
+Updated files:
+- src/app/(tabs)/settings/index.tsx
+- src/components/escalation-window-control.tsx
+
+Fixes:
+1. Settings section shortcuts no longer rely on React Native's native sticky-header touch handling.
+   A top overlay is shown only after the original shortcut bar reaches the top.
+   The overlay sits outside the ScrollView, uses Android elevation/z-index, and receives taps directly.
+
+2. Programmatic Account / Alerts / History / System jumps keep the chosen green tab stable while the scroll position updates, preventing iOS selection flicker.
+
+3. While Driver SMS Delay is being dragged, the Settings ScrollView is temporarily disabled.
+   This prevents the iOS page from moving vertically while the slider is being manipulated.
+   Scrolling is restored as soon as the finger is released or the gesture is cancelled.

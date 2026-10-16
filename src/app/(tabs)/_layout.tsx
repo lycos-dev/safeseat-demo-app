@@ -8,7 +8,7 @@ import { Icon, Host } from "@/components/ui-bridge";
 
 import * as Haptics from "expo-haptics";
 import Banner from "@/components/banner";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { UserPreferencesProvider } from "@/hooks/user-preferences-context";
 import { SafeSeatHubProvider } from "@/hooks/safeseat-hub-context";
 import { SafeSeatCloudSyncProvider } from "@/hooks/safeseat-cloud-sync-context";
@@ -33,13 +33,13 @@ const TAB_ROOTS: Record<string, string> = {
   settings: "/settings",
 };
 
-function MyCustomTabBar({ state, descriptors, navigation, pathname }: any) {
+function MyCustomTabBar({ state, descriptors, navigation, pathname, bottomInset = 0 }: any) {
   const themes = useTheme();
   const styles = createStyles(themes);
   const { active: guideActive, stepId: guideStepId, recordTabOpened } = useDriverGuide();
 
   return (
-    <View style={styles.tabContainer}>
+    <View style={[styles.tabContainer, { paddingBottom: Math.max(bottomInset, 6), paddingTop: spacing.half + 2 }]}> 
       <View style={styles.tabDrawer}>
         {state.routes.map((route: any, index: number) => {
           const isFocused = state.index === index;
@@ -95,7 +95,7 @@ function TabsInner() {
   const themes = useTheme();
   const styles = createStyles(themes);
   const pathname = usePathname();
-  const isNestedScreen = pathname.split("/").filter(Boolean).length > 1;
+  const insets = useSafeAreaInsets();
 
   const tabIcon = (focused: boolean, iosOn: NonNullable<Parameters<typeof Icon.select>[0]["ios"]>, iosOff: NonNullable<Parameters<typeof Icon.select>[0]["ios"]>, android: any) => (
     <ThemedHost key={`tab-icon-${themes.mode}-${focused ? "on" : "off"}`} matchContents>
@@ -110,8 +110,8 @@ function TabsInner() {
         <Tabs
           tabBarPosition="bottom"
           // @ts-ignore
-          tabBar={(props) => <MyCustomTabBar {...props} pathname={pathname} />}
-          screenOptions={{ swipeEnabled: !isNestedScreen, lazy: true, lazyPreloadDistance: 0, headerShown: false, sceneContainerStyle: { backgroundColor: themes.background } }}
+          tabBar={(props) => <MyCustomTabBar {...props} pathname={pathname} bottomInset={insets.bottom} />}
+          screenOptions={{ swipeEnabled: false, lazy: true, lazyPreloadDistance: 0, headerShown: false, sceneContainerStyle: { backgroundColor: themes.background } }}
         >
           <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ({ focused }: any) => tabIcon(focused, "house.fill", "house", homeXml) }} />
           <Tabs.Screen name="assign" options={{ title: "Seats", tabBarIcon: ({ focused }: any) => tabIcon(focused, "carseat.right.fill", "carseat.right", seatXml) }} />
@@ -145,9 +145,9 @@ const createStyles = (themes: ThemePalette) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: themes.background },
   root: { flex: 1, backgroundColor: themes.background },
   bannerContainer: { paddingHorizontal: spacing.two, paddingBottom: spacing.one },
-  tabContainer: { width: "100%", backgroundColor: themes.background, paddingHorizontal: spacing.two, paddingTop: spacing.one, paddingBottom: spacing.one },
-  tabDrawer: { minHeight: 70, flexDirection: "row", alignItems: "stretch", backgroundColor: themes.backgroundElement, borderRadius: 24, borderWidth: 1, borderColor: themes.divider, padding: 5, shadowColor: themes.shadow, shadowOpacity: themes.mode === "dark" ? 0.2 : 0.08, shadowRadius: 12, elevation: 5 },
-  tabButton: { flex: 1, position: "relative", overflow: "visible", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 18 },
+  tabContainer: { width: "100%", backgroundColor: themes.background, paddingHorizontal: spacing.two },
+  tabDrawer: { minHeight: 68, flexDirection: "row", alignItems: "stretch", backgroundColor: themes.backgroundElement, borderRadius: 24, borderWidth: 1, borderColor: themes.divider, padding: 5, shadowColor: themes.shadow, shadowOpacity: themes.mode === "dark" ? 0.12 : 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: -1 }, elevation: 1 },
+  tabButton: { flex: 1, position: "relative", overflow: "visible", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 18, minHeight: 58 },
   activeTabButton: { backgroundColor: themes.primarySoft },
   guideTabButton: { zIndex: 50 },
   pressedTabButton: { opacity: 0.72 },

@@ -1,0 +1,13 @@
+SafeSeat R73 — Sticky Clickable Platform Fix PATCH ONLY
+
+Updated file:
+- src/app/(tabs)/settings/index.tsx
+
+What changed:
+- iOS: uses the normal native sticky header again; no separate floating overlay is rendered on iOS.
+- Android: does NOT use React Native stickyHeaderIndices for the shortcut bar.
+  Instead, once the original bar reaches the top, an Android-only pinned copy is rendered outside the ScrollView.
+- Android pinned buttons trigger on press-in so ScrollView responder cancellation cannot swallow the tap.
+- Raised only the Android pinned bar's touch/drawing layer.
+- Driver SMS slider logic is unchanged.
+- Bottom navigation is unchanged.

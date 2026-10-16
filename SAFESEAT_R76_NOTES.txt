@@ -1,0 +1,8 @@
+SafeSeat R76 — Remove Sensor Setup Card PATCH ONLY
+
+Updated file:
+- src/app/(tabs)/settings/index.tsx
+
+Change:
+- Removed the "Sensor setup card" setting from Settings > System & Display.
+- No other UI, monitoring, sensor, slider, sticky-bar, or bottom-tab behavior was changed.

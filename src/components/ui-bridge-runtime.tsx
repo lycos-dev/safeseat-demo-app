@@ -1,4 +1,4 @@
-import { getAndroidIconSource } from "@/services/icon-assets";
+import { getAndroidIconFallbackName } from "@/services/icon-assets";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ExpoUI from "@expo/ui";
 import React from "react";
@@ -63,28 +63,35 @@ function normalizeSymbol(name: unknown): string {
 }
 
 export function Host(props: any) {
+  if (Platform.OS === "android") {
+    // Android release builds use React Native vector icons instead of the
+    // Expo UI XML painter. A plain View keeps sizing/touch behavior stable and
+    // avoids Compose/asset differences between Expo Go and a standalone APK.
+    return <View style={props.style}>{props.children}</View>;
+  }
   if (!IS_WEB) {
-    // Compose does not intrinsically size an unmeasured React Native Host.
-    // Reserve the existing icon size while its native painter loads.
-    const children = React.Children.toArray(props.children);
-    const child = children.length === 1 ? children[0] : null;
-    const iconSize = React.isValidElement<any>(child) && child.type === Icon ? (child.props as { size?: number }).size ?? 20 : null;
-    const nativeProps = Platform.OS === "android" && iconSize !== null
-      ? { ...props, matchContents: props.matchContents ?? true,
-          style: [{ width: iconSize, height: iconSize }, props.style] }
-      : props;
-    return React.createElement((ExpoUI as any).Host, nativeProps, props.children);
+    return React.createElement((ExpoUI as any).Host, props, props.children);
   }
   return <View style={props.style}>{props.children}</View>;
 }
 
 export function Icon({ name, size = 20, color, style, ...rest }: any) {
+  if (Platform.OS === "android") {
+    // Use the bundled Ionicons font on Android. Font glyphs are packaged
+    // reliably in standalone APKs, unlike the @expo/ui XML icon painter that
+    // can behave differently between Expo Go and a release build.
+    return (
+      <Ionicons
+        name={normalizeSymbol(getAndroidIconFallbackName(name)) as any}
+        size={size}
+        color={color}
+        style={style}
+        {...rest}
+      />
+    );
+  }
   if (!IS_WEB) {
-    // Expo UI's Android IconView rejects CSS-only values such as
-    // "currentColor" with "Unknown color". Omit the tint entirely when
-    // callers do not provide a React Native ColorValue so the native icon can
-    // inherit its Host content color safely.
-    const nativeProps: any = { name: Platform.OS === "android" ? getAndroidIconSource(name) : name, size, style, ...rest };
+    const nativeProps: any = { name, size, style, ...rest };
     if (color != null && color !== "currentColor") nativeProps.color = color;
     return React.createElement((ExpoUI as any).Icon, nativeProps);
   }
@@ -101,12 +108,15 @@ export function Icon({ name, size = 20, color, style, ...rest }: any) {
 
 Icon.select = (options: { ios?: any; android?: any; web?: any }) => {
   if (IS_WEB) return options?.web ?? options?.ios ?? options?.android;
+  if (Platform.OS === "android") {
+    // Keep each call site's Android semantic choice, but render it through the
+    // bundled vector-icon font instead of @expo/ui's XML painter.
+    return options?.android ?? options?.ios;
+  }
   const nativeSelect = (ExpoUI as any).Icon?.select;
   return typeof nativeSelect === "function"
     ? nativeSelect(options)
-    : Platform.OS === "ios"
-      ? options?.ios ?? options?.android
-      : options?.android ?? options?.ios;
+    : options?.ios ?? options?.android;
 };
 
 function WebStack({ children, spacing = 0, alignment = "stretch", style, direction = "column" }: any) {

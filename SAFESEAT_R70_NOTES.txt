@@ -1,0 +1,24 @@
+SafeSeat R70 — Settings Sticky Bar + True Slider PATCH ONLY
+
+Updated files:
+- src/app/(tabs)/_layout.tsx
+- src/app/(tabs)/settings/index.tsx
+- src/components/escalation-window-control.tsx
+
+Fixes:
+1. Main Home / Seats / Profiles / Settings horizontal swipe navigation is disabled.
+   - Tabs still change normally by tapping the bottom navigation.
+   - Prevents the Driver SMS slider from accidentally swiping to Profiles.
+
+2. Settings Account / Alerts / History / System uses ONE real sticky header.
+   - Removed the duplicated floating copy.
+   - Buttons remain touchable while sticky.
+   - Tapping a section jumps directly without animated intermediate states.
+   - Prevents iOS green-selection flicker/jumping between section buttons.
+
+3. Driver SMS Delay is now drag-first.
+   - Thumb follows the finger smoothly.
+   - Value is previewed while dragging.
+   - Setting commits only after finger release.
+   - Still snaps to 20 / 25 / 30 seconds.
+   - Labels remain tappable as an accessibility/fallback option.

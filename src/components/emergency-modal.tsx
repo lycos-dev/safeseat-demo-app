@@ -10,6 +10,7 @@ import { markCurrentIncidentSmsEscalated } from "@/services/admin-cloud-sync";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { openPhoneDialer } from "@/utils/phone-call";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -321,24 +322,8 @@ export default function EmergencyModal({
   };
 
   const handleCall = async (phoneNumber: string) => {
-    const cleanNumber = phoneNumber.replace(/[^0-9+]/g, "");
-    if (!cleanNumber) {
-      Alert.alert("No phone number", "This contact does not have a usable phone number.");
-      return;
-    }
-
-    try {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      const url = `tel:${cleanNumber}`;
-      if (await Linking.canOpenURL(url)) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert("Dialer unavailable", "This device cannot open the phone dialer.");
-      }
-    } catch (error) {
-      console.error("Failed to open phone dialer:", error);
-      Alert.alert("Dialer unavailable", "Could not open the phone dialer.");
-    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    await openPhoneDialer(phoneNumber);
   };
 
   const handleEmergencyServices = () => {
@@ -359,16 +344,17 @@ export default function EmergencyModal({
       default: "https://www.google.com/maps/search/?api=1&query=emergency+hospital",
     }) as string;
 
+    const webUrl = "https://www.google.com/maps/search/?api=1&query=emergency+hospital";
     try {
-      if (await Linking.canOpenURL(nativeUrl)) {
-        await Linking.openURL(nativeUrl);
-      } else {
-        await Linking.openURL(
-          "https://www.google.com/maps/search/?api=1&query=emergency+hospital",
-        );
-      }
+      // canOpenURL is unreliable on Android 11+ without package visibility, so just try the
+      // native maps link and fall back to the web link when it fails.
+      await Linking.openURL(nativeUrl);
     } catch {
-      Alert.alert("Maps unavailable", "Could not open nearby hospital search on this device.");
+      try {
+        await Linking.openURL(webUrl);
+      } catch {
+        Alert.alert("Maps unavailable", "Could not open nearby hospital search on this device.");
+      }
     }
   };
 

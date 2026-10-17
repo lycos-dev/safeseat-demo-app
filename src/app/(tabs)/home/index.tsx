@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import SheetFrame from "@/components/sheet-frame";
 import ThemedHost from "@/components/themed-host";
 import { SeatVitals } from "@/components/seat-card";
 import HomeMonitorRow from "@/components/home-monitor-row";
@@ -135,7 +137,7 @@ export default function Home() {
   const router = useRouter();
   const { isStep, recordLiveSeatOpened } = useDriverGuide();
   const insets = useSafeAreaInsets();
-  const bottomPad = 88 + insets.bottom;
+  const bottomPad = 24; // tab bar already owns the bottom safe-area inset
   const {
     connected: hubConnected,
     telemetryReady,
@@ -759,7 +761,7 @@ export default function Home() {
         <View style={styles.backgroundGlowBottom} />
       </View>
 
-      <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
         {showMonitorBoard ? (
           <View style={styles.activeContainer}>
             <View style={styles.headerRow}>
@@ -915,15 +917,16 @@ export default function Home() {
           transparent
           animationType="fade"
           statusBarTranslucent
+          navigationBarTranslucent
           onRequestClose={() => setUatControlVisible(false)}
-        >
+        ><ModalSafeArea>
           <View style={styles.modalBackdrop}>
             <Pressable
               style={StyleSheet.absoluteFill}
               onPress={() => setUatControlVisible(false)}
               accessibilityLabel="Close UAT control"
             />
-            <View style={styles.uatModalCard}>
+            <SheetFrame style={styles.uatModalCard}>
               <View style={styles.endModalHandle} />
               <Text style={styles.uatModalEyebrow}>RESEARCHER CONTROL</Text>
               <Text style={styles.uatModalTitle}>
@@ -993,24 +996,25 @@ export default function Home() {
               <Pressable onPress={() => setUatControlVisible(false)} style={({ pressed }) => [styles.uatCloseButton, pressed && styles.modalButtonPressed]}>
                 <Text style={styles.uatCloseText}>Close</Text>
               </Pressable>
-            </View>
+            </SheetFrame>
           </View>
-        </Modal>
+        </ModalSafeArea></Modal>
 
         <Modal
           visible={endSessionVisible}
           transparent
           animationType="fade"
           statusBarTranslucent
+          navigationBarTranslucent
           onRequestClose={() => endingSeatNo === null && !endingAllSessions && setEndSessionVisible(false)}
-        >
+        ><ModalSafeArea>
           <View style={styles.modalBackdrop}>
             <Pressable
               style={StyleSheet.absoluteFill}
               onPress={() => endingSeatNo === null && !endingAllSessions && setEndSessionVisible(false)}
               accessibilityLabel="Close end session dialog"
             />
-            <View style={styles.endModalCard}>
+            <SheetFrame style={styles.endModalCard}>
               <View style={styles.endModalHandle} />
               <Text style={styles.endModalEyebrow}>PASSENGER SESSIONS</Text>
               <Text style={styles.endModalTitle}>Who is getting off?</Text>
@@ -1059,9 +1063,9 @@ export default function Home() {
               >
                 <Text style={styles.keepMonitoringText}>Keep Monitoring</Text>
               </Pressable>
-            </View>
+            </SheetFrame>
           </View>
-        </Modal>
+        </ModalSafeArea></Modal>
 
         <LiveSeatDetailModal
           visible={liveDetailSeatNo !== null}

@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import ModalKeyboardLayout from "./modal-keyboard-layout";
 import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import * as Haptics from "expo-haptics";
@@ -111,10 +113,10 @@ export default function AddContactModal({ visible, onClose, onSuccess }: Props) 
   };
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={requestClose}>
+    <Modal animationType="fade" transparent statusBarTranslucent navigationBarTranslucent visible={visible} onRequestClose={requestClose}><ModalSafeArea>
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
         <View style={styles.backdrop}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardWrap}>
+          <ModalKeyboardLayout style={styles.keyboardWrap}>
             <View style={styles.container}>
               <View style={styles.headerRow}>
                 <View style={styles.contactGlyph}>
@@ -181,10 +183,10 @@ export default function AddContactModal({ visible, onClose, onSuccess }: Props) 
                 </View>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          </ModalKeyboardLayout>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+    </ModalSafeArea></Modal>
   );
 }
 

@@ -20,6 +20,7 @@ import {
     ActivityIndicator
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { openPhoneDialer, openSmsComposer } from "@/utils/phone-call";
 
 import * as Haptics from "expo-haptics";
 
@@ -154,15 +155,15 @@ export default function Contact() {
 
     const handleCall = () => {
         if (!userPhone || userPhone === "Not Set") return;
-        Linking.openURL(`tel:${userPhone}`);
+        void openPhoneDialer(userPhone);
     };
 
     const handleText = () => {
         if (!userPhone || userPhone === "Not Set") return;
-        Linking.openURL(`sms:${userPhone}`);
+        void openSmsComposer(userPhone);
     };
 
-    const bottomPad = 104 + (insets.bottom / 2);
+    const bottomPad = 24; // tab bar owns the bottom inset
 
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -224,7 +225,7 @@ export default function Contact() {
     return (
         <SafeAreaView
             style={{ flex: 1, backgroundColor: themes.background }}
-            edges={["left", "right", "bottom"]}
+            edges={["left", "right"]}
         >
                 <FormScrollView
                     contentContainerStyle={[{ flexGrow: 1 }, { marginTop: spacing.one, paddingBottom: bottomPad }]}

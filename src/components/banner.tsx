@@ -15,6 +15,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { openPhoneDialer } from "@/utils/phone-call";
 import Button from "./button";
 
 // Firebase Imports
@@ -73,9 +74,7 @@ export default function Banner() {
             const phoneNumber = primaryContact?.phoneNumber || primaryContact?.phone;
 
             if (phoneNumber) {
-                // Sanitize phone string for dialer
-                const sanitizedNumber = phoneNumber.replace(/[^0-9+]/g, "");
-                Linking.openURL(`tel:${sanitizedNumber}`);
+                await openPhoneDialer(phoneNumber);
             } else {
                 alert("Primary contact does not have a valid phone number.");
             }
@@ -97,16 +96,12 @@ export default function Banner() {
 
         const webUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
 
+        const openWeb = () => { void Linking.openURL(webUrl).catch(() => undefined); };
         if (url) {
-            Linking.canOpenURL(url).then((supported) => {
-                if (supported) {
-                    Linking.openURL(url);
-                } else {
-                    Linking.openURL(webUrl);
-                }
-            });
+            // canOpenURL is unreliable on Android 11+ without package visibility: try, then fall back.
+            Linking.openURL(url).catch(openWeb);
         } else {
-            Linking.openURL(webUrl);
+            openWeb();
         }
     };
 

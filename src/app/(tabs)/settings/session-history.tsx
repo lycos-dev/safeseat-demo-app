@@ -74,8 +74,8 @@ export default function SessionHistoryScreen() {
   }, [history]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 28 + insets.bottom }]} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>PRIVATE PASSENGER RECORD</Text>
           <Text style={styles.title}>Session History</Text>

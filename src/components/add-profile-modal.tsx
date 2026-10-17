@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import ModalKeyboardLayout from "./modal-keyboard-layout";
 import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useUserPreferences } from "@/hooks/user-preferences-context";
@@ -194,10 +196,10 @@ export default function AddProfileModal({ visible, onClose, onSuccess }: Props) 
   };
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={requestClose}>
+    <Modal animationType="fade" transparent statusBarTranslucent navigationBarTranslucent visible={visible} onRequestClose={requestClose}><ModalSafeArea>
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
         <View style={styles.backdrop}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardWrap}>
+          <ModalKeyboardLayout scroll={false} style={styles.keyboardWrap}>
             <View style={styles.container}>
               <View style={styles.modalHeader}>
                 <View style={styles.profileGlyph}><Text style={styles.profileGlyphText}>+</Text></View>
@@ -288,17 +290,17 @@ export default function AddProfileModal({ visible, onClose, onSuccess }: Props) 
                 </View>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          </ModalKeyboardLayout>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+    </ModalSafeArea></Modal>
   );
 }
 
 const createStyles = (themes: ThemePalette) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(3,7,15,0.86)", justifyContent: "center", alignItems: "center", paddingHorizontal: spacing.two },
   keyboardWrap: { width: "100%", maxWidth: 430 },
-  container: { width: "100%", maxHeight: "90%", backgroundColor: themes.backgroundElevated, borderWidth: 1, borderColor: themes.divider, borderRadius: 26, padding: spacing.two, gap: spacing.one + 4, shadowColor: "#000", shadowOpacity: 0.32, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
+  container: { width: "100%", flexShrink: 1, backgroundColor: themes.backgroundElevated, borderWidth: 1, borderColor: themes.divider, borderRadius: 26, padding: spacing.two, gap: spacing.one + 4, shadowColor: "#000", shadowOpacity: 0.32, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
   modalHeader: { flexDirection: "row", alignItems: "center", gap: spacing.one + 2 },
   profileGlyph: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: themes.primarySoft, borderWidth: 1, borderColor: themes.primaryBorder },
   profileGlyphText: { color: themes.primaryBttn, fontSize: 28, lineHeight: 29, fontFamily: "Body-Regular" },

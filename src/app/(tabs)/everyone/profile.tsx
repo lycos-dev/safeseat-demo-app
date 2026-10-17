@@ -542,7 +542,7 @@ export default function Profile() {
 
 
 	const insets = useSafeAreaInsets();
-	const bottomPad = 104 + (insets.bottom / 2);
+	const bottomPad = 24; // tab bar owns the bottom inset
 
 	const handlePickImage = async () => {
 		const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -639,7 +639,7 @@ export default function Profile() {
 	return (
 		<SafeAreaView
 			style={{ flex: 1, backgroundColor: themes.background }}
-			edges={["left", "right", "bottom"]}
+			edges={["left", "right"]}
 		>
 				<FormScrollView contentContainerStyle={[{ flexGrow: 1 }, { marginTop: spacing.one, paddingBottom: bottomPad }]} showsVerticalScrollIndicator={true} bounces={true}>
 					<View style={styles.container}>

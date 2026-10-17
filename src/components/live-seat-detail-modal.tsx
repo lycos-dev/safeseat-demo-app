@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import SheetFrame from "@/components/sheet-frame";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
@@ -130,10 +132,10 @@ export default function LiveSeatDetailModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}><ModalSafeArea>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close live seat detail" />
-        <View style={styles.card} accessibilityViewIsModal>
+        <SheetFrame style={styles.card} accessibilityViewIsModal attachToBottom>
           <View style={styles.handle} />
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
@@ -190,9 +192,9 @@ export default function LiveSeatDetailModal({
           <Pressable onPress={onClose} style={({ pressed }) => [styles.closeButton, pressed && { opacity: 0.75 }]}>
             <Text style={styles.closeText}>Close</Text>
           </Pressable>
-        </View>
+        </SheetFrame>
       </View>
-    </Modal>
+    </ModalSafeArea></Modal>
   );
 }
 

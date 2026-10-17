@@ -90,7 +90,7 @@ export default function Login() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior="padding"
           style={styles.flex}
         >
           <ScrollView

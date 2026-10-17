@@ -31,7 +31,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.ollymt.safeseatapp",
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#101322",
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -51,6 +51,7 @@
     "plugins": [
       "expo-router",
       "expo-system-ui",
+      "./plugins/with-android-queries",
       [
         "expo-splash-screen",
         {

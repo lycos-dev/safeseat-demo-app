@@ -239,10 +239,10 @@ export default function Diagnostics() {
       : "Main Hub not connected";
 
   return (
-    <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: 84 + insets.bottom }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 }]}
       >
         <View style={styles.headerBlock}>
           <Text style={styles.eyebrow}>SYSTEM CHECK</Text>

@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import SheetFrame from "@/components/sheet-frame";
 import Button from "@/components/button";
 import { confirmAction } from "../../../utils/platform-dialog";
 import AssignCard from "@/components/assign-card";
@@ -456,7 +458,7 @@ export default function Assign() {
   const linkedProfileName = hardwareSeatNo ? getDisplayProfile(assignments[hardwareSeatNo])?.name : undefined;
 
   return (
-    <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad + spacing.one }]}
         showsVerticalScrollIndicator={false}
@@ -644,15 +646,16 @@ export default function Assign() {
             transparent
             animationType="fade"
             statusBarTranslucent
+          navigationBarTranslucent
             onRequestClose={() => setConsentModalVisible(false)}
-          >
+          ><ModalSafeArea>
             <View style={styles.consentBackdrop}>
               <Pressable
                 style={StyleSheet.absoluteFill}
                 onPress={() => setConsentModalVisible(false)}
                 accessibilityLabel="Close consent dialog"
               />
-              <View style={styles.consentCard}>
+              <SheetFrame style={styles.consentCard}>
                 <View style={styles.consentHandle} />
                 {isStep("consent") && guideSeatNo === consentSeatNo ? (
                   <View style={styles.consentGuideCompact}>
@@ -706,9 +709,9 @@ export default function Assign() {
                 >
                   <Text style={styles.changePersonText}>Choose Different Person</Text>
                 </Pressable>
-              </View>
+              </SheetFrame>
             </View>
-          </Modal>
+          </ModalSafeArea></Modal>
         </View>
       </ScrollView>
 
@@ -721,7 +724,7 @@ export default function Assign() {
         }}
         style={[
           styles.stickyActionWrap,
-          { paddingBottom: Math.max(insets.bottom, 8) },
+          { paddingBottom: 8 },
         ]}
       >
         <View style={styles.stickyActionInner}>

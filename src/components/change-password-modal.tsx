@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import ModalKeyboardLayout from "./modal-keyboard-layout";
 import ThemedHost from "@/components/themed-host";
 import { confirmAction } from "../utils/platform-dialog";
 // components/ChangePasswordModal.tsx
@@ -138,18 +140,15 @@ export default function ChangePasswordModal({ visible, onClose, onSuccess }: Pro
     };
 
     return (
-        <Modal
+        <Modal statusBarTranslucent navigationBarTranslucent
             animationType="fade"
             transparent={true}
             visible={visible}
             onRequestClose={handleResetAndClose}
-        >
+        ><ModalSafeArea>
             <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
                 <View style={styles.backdrop}>
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === "ios" ? "padding" : "height"}
-                        style={{ width: "100%" }}
-                    >
+                    <ModalKeyboardLayout>
                         <View style={styles.container}>
                             <Text style={styles.header}>Change Password</Text>
 
@@ -273,10 +272,10 @@ export default function ChangePasswordModal({ visible, onClose, onSuccess }: Pro
                                 </View>
                             </View>
                         </View>
-                    </KeyboardAvoidingView>
+                    </ModalKeyboardLayout>
                 </View>
             </TouchableWithoutFeedback>
-        </Modal>
+        </ModalSafeArea></Modal>
     );
 }
 

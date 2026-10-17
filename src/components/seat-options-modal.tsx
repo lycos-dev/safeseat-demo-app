@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import SheetFrame from "@/components/sheet-frame";
 import { Spacing as spacing, type ThemePalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
@@ -75,10 +77,10 @@ export default function SeatOptionsModal({
   const consentActionTitle = "Consent";
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}><ModalSafeArea>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close seat options" />
-        <View style={styles.card}>
+        <SheetFrame style={styles.card} attachToBottom>
           <View style={styles.handle} />
 
           <View style={styles.headerBlock}>
@@ -134,9 +136,9 @@ export default function SeatOptionsModal({
           <Pressable onPress={onClose} style={({ pressed }) => [styles.close, pressed && styles.actionPressed]}>
             <Text style={styles.closeText}>Close</Text>
           </Pressable>
-        </View>
+        </SheetFrame>
       </View>
-    </Modal>
+    </ModalSafeArea></Modal>
   );
 }
 

@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import SheetFrame from "@/components/sheet-frame";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { type ThemePalette } from "@/constants/theme";
@@ -24,10 +26,10 @@ export default function SessionSummaryModal({ visible, session, onClose, onDismi
   const summary = session?.summary;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}><ModalSafeArea>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close session summary" />
-        <View style={styles.card} accessibilityViewIsModal>
+        <SheetFrame style={styles.card} accessibilityViewIsModal attachToBottom>
           <View style={styles.handle} />
           <Text style={styles.eyebrow}>SESSION SAVED</Text>
           <Text style={styles.title}>{session?.seatLabel ?? "Seat"}</Text>
@@ -56,9 +58,9 @@ export default function SessionSummaryModal({ visible, session, onClose, onDismi
           <Pressable onPress={onDismiss} style={({ pressed }) => [styles.secondaryButton, pressed && { opacity: 0.78 }]}>
             <Text style={styles.secondaryText}>Dismiss</Text>
           </Pressable>
-        </View>
+        </SheetFrame>
       </View>
-    </Modal>
+    </ModalSafeArea></Modal>
   );
 }
 

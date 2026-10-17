@@ -319,15 +319,14 @@ export default function Settings() {
 
       {Platform.OS === "android" && stickyActive ? (
         <View
-          pointerEvents="none"
           collapsable={false}
           style={styles.floatingShortcutShell}
         >
           <View style={styles.floatingShortcutDock}>
-            {shortcut("Account", "account", false)}
-            {shortcut("Alerts", "alerts", false)}
-            {shortcut("History", "history", false)}
-            {shortcut("System", "system", false)}
+            {shortcut("Account", "account")}
+            {shortcut("Alerts", "alerts")}
+            {shortcut("History", "history")}
+            {shortcut("System", "system")}
           </View>
         </View>
       ) : null}

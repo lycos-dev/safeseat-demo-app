@@ -253,7 +253,7 @@ export default function Everyone() {
 
 	return (
 		<View style={{ flex: 1, backgroundColor: themes.background }}>
-			<SafeAreaView style={[styles.safeArea, { backgroundColor: themes.background }]} edges={["left", "right", "bottom"]}>
+			<SafeAreaView style={[styles.safeArea, { backgroundColor: themes.background }]} edges={["left", "right"]}>
 				<View style={styles.container}>
 					<View
 						style={{
@@ -302,7 +302,7 @@ export default function Everyone() {
 								refreshing={refreshing}
 								contentContainerStyle={{
 									marginTop: spacing.none,
-									paddingBottom: 100 + insets.bottom,
+									paddingBottom: 24,
 								}}
 								stickySectionHeadersEnabled={true}
 								showsVerticalScrollIndicator={false}
@@ -377,7 +377,7 @@ export default function Everyone() {
 								refreshing={refreshing}
 								showsVerticalScrollIndicator={false}
 								contentContainerStyle={{
-									paddingBottom: 100 + insets.bottom,
+									paddingBottom: 24,
 									gap: spacing.one,
 								}}
 								renderItem={({ item, index }) => (
@@ -430,17 +430,14 @@ export default function Everyone() {
 						</View>
 					)}
 
-					<KeyboardAvoidingView
-						behavior={Platform.OS == "ios" ? "padding" : "height"}
-					>
-						<AddProfileModal
-							visible={addProfileVisible}
-							onClose={() => {
-								setAddProfileVisible(false);
-								loadAllUserData();
-							}}
-						/>
-					</KeyboardAvoidingView>
+					{/* The modal handles its own keyboard avoidance; a wrapper here only distorted this screen. */}
+					<AddProfileModal
+						visible={addProfileVisible}
+						onClose={() => {
+							setAddProfileVisible(false);
+							loadAllUserData();
+						}}
+					/>
 
 					<AddContactModal
 						visible={addContactVisible}

@@ -4,6 +4,7 @@ import { FontSize as fontsize, Spacing as spacing, type ThemePalette } from "@/c
 import { useTheme } from "@/hooks/use-theme";
 import { Host, Icon } from "@/components/ui-bridge";
 import * as Haptics from "expo-haptics";
+import { openPhoneDialer } from "@/utils/phone-call";
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 type ContactCardProps = {
@@ -29,14 +30,7 @@ export default function ContactCard({ name, phone, order, onPress }: ContactCard
 
   const handleMakeCall = async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const url = `tel:${phone}`;
-    try {
-      if (await Linking.canOpenURL(url)) await Linking.openURL(url);
-      else Alert.alert("Calling unavailable", "Phone calls are not supported on this device.");
-    } catch (error) {
-      console.error("Could not open dialer:", error);
-      Alert.alert("Calling unavailable", "SafeSeat could not open the phone dialer.");
-    }
+    await openPhoneDialer(phone);
   };
 
   return (

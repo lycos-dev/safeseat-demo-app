@@ -1,3 +1,5 @@
+import ModalSafeArea from "@/components/modal-safe-area";
+import ModalKeyboardLayout from "./modal-keyboard-layout";
 import ThemedHost from "@/components/themed-host";
 // components/PasswordVerifyModal.tsx
 import { type ThemePalette, Spacing as spacing, FontSize as fontsize } from "@/constants/theme";
@@ -78,19 +80,16 @@ export default function PasswordVerifyModal({ visible, onClose, onSuccess }: Pro
     }, [visible]);
 
     return (
-        <Modal
+        <Modal statusBarTranslucent navigationBarTranslucent
             animationType="fade"
             transparent={true}
             visible={visible}
             onRequestClose={onClose}
-        >
+        ><ModalSafeArea>
             {/* Full-screen backdrop wrapper that centers children */}
             <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
                 <View style={styles.backdrop}>
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS == "ios" ? "padding" : "height"}
-                        style={{ width: "100%" }}
-                    >
+                    <ModalKeyboardLayout>
 
                         <View style={styles.container}>
                             <Text style={styles.header}>
@@ -150,10 +149,10 @@ export default function PasswordVerifyModal({ visible, onClose, onSuccess }: Pro
 
                         </View>
 
-                    </KeyboardAvoidingView>
+                    </ModalKeyboardLayout>
                 </View>
             </TouchableWithoutFeedback>
-        </Modal>
+        </ModalSafeArea></Modal>
     );
 }
 

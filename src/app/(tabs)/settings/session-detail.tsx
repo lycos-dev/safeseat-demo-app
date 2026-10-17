@@ -55,7 +55,7 @@ export default function SessionDetailScreen() {
   const session = typeof id === "string" ? getSessionById(id) : undefined;
 
   if (!session) {
-    return <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}><View style={styles.missing}><Ionicons name="alert-circle-outline" size={30} color={themes.textMuted} /><Text style={styles.missingTitle}>Session not found</Text><Text style={styles.missingText}>This session is no longer available on this device.</Text></View></SafeAreaView>;
+    return <SafeAreaView style={styles.screen} edges={["left", "right"]}><View style={styles.missing}><Ionicons name="alert-circle-outline" size={30} color={themes.textMuted} /><Text style={styles.missingTitle}>Session not found</Text><Text style={styles.missingText}>This session is no longer available on this device.</Text></View></SafeAreaView>;
   }
 
   const summary = session.summary;
@@ -84,8 +84,8 @@ export default function SessionDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 28 + insets.bottom }]} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>SESSION DETAIL</Text>
           <Text style={styles.title}>{session.occupant.displayName}</Text>

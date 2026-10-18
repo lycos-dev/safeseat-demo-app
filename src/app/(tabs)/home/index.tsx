@@ -82,6 +82,11 @@ const SEAT_ROLES: Record<number, string> = {
 
 const SEAT_NUMBERS = [1, 2, 3, 4, 5];
 
+// Presentation-only startup sync: the Main Hub is already processing sensors.
+// Never gate real WARNING / EMERGENCY or the underlying monitoring session.
+const SESSION_START_SYNC_MS = 3000;
+const HUB_STATUS_FRESH_MS = 5000;
+
 const buildStatusCopy = (themes: ThemePalette) => ({
   safe: {
     label: "SAFE",
@@ -142,6 +147,7 @@ export default function Home() {
     connected: hubConnected,
     telemetryReady,
     status: hubStatus,
+    lastUpdatedAt: hubLastUpdatedAt,
     seatState: hubSeatState,
     simulationActive,
     simulationState,
@@ -288,6 +294,19 @@ export default function Home() {
 
   const hardwareSeatOccupancyKnown = typeof hubStatus?.sensors?.fsr?.occupied === "boolean";
   const hardwareSeatOccupied = hubStatus?.sensors?.fsr?.occupied === true;
+  // A previously received SAFE status must not be shown as fresh after network loss.
+  // Hub polling updates lastUpdatedAt only following a successful status response.
+  const hubStatusFresh = hubLastUpdatedAt !== null &&
+    Math.abs(clockNow - hubLastUpdatedAt) <= HUB_STATUS_FRESH_MS;
+  const linkedSession = hardwareSeatNo ? activeSessions[hardwareSeatNo] : undefined;
+  const linkedSessionElapsedMs = linkedSession ? clockNow - linkedSession.startedAt : null;
+  const linkedSessionInitializing = Boolean(
+    isLockedIn && linkedSession &&
+    linkedSessionElapsedMs !== null &&
+    linkedSessionElapsedMs >= -1000 && linkedSessionElapsedMs < SESSION_START_SYNC_MS &&
+    hubConnected && telemetryReady && hardwareSeatOccupancyKnown && hardwareSeatOccupied &&
+    hubSeatState !== "warning" && hubSeatState !== "emergency"
+  );
   const waitingForOccupant = Boolean(
     hardwareSeatNo &&
     activeSessions[hardwareSeatNo] &&
@@ -313,13 +332,20 @@ export default function Home() {
     if (seatNo === hardwareSeatNo && seatActive && hubConnected && telemetryReady && hardwareSeatOccupancyKnown && !hardwareSeatOccupied) {
       return "waiting";
     }
+    if (seatNo === hardwareSeatNo && seatActive && hubConnected && telemetryReady &&
+        hubSeatState !== "warning" && hubSeatState !== "emergency" &&
+        (!hardwareSeatOccupancyKnown || !hubStatusFresh || linkedSessionInitializing)) {
+      // The UI synchronizes with live, occupied-seat telemetry for three seconds.
+      // Real alerts bypass this display gate immediately.
+      return "unknown";
+    }
     return getSeatDisplayState({
       assigned: Boolean(assignments[seatNo]),
       ownerDriver: seatNo === 1 && Boolean(assignments[seatNo]?.isAccountOwner),
       consent: consents[seatNo], linked: seatNo === hardwareSeatNo,
       connected: hubConnected, ready: telemetryReady, active: seatActive, liveState: hubSeatState,
     });
-  }, [activeSessions, assignments, consents, hardwareSeatNo, hardwareSeatOccupancyKnown, hardwareSeatOccupied, hubConnected, hubSeatState, isLockedIn, recentCompleted, telemetryReady]);
+  }, [activeSessions, assignments, consents, hardwareSeatNo, hardwareSeatOccupancyKnown, hardwareSeatOccupied, hubConnected, hubSeatState, hubStatusFresh, isLockedIn, linkedSessionInitializing, recentCompleted, telemetryReady]);
 
   const getDisplayName = (profile?: Profile): string | undefined => {
     if (!profile) return undefined;
@@ -410,15 +436,17 @@ export default function Home() {
     ? "WAITING FOR OCCUPANT"
     : !telemetryReady
       ? "ANALYZING"
-    : hubSeatState === "emergency"
-      ? "EMERGENCY"
-      : hubSeatState === "warning"
-        ? "WARNING"
-        : hubSeatState === "monitoring"
-          ? "MONITORING"
-          : hubSeatState === "safe"
-            ? "NORMAL"
-            : "ANALYZING";
+      : hubSeatState === "emergency"
+        ? "EMERGENCY"
+        : hubSeatState === "warning"
+          ? "WARNING"
+          : linkedSessionInitializing || !hubStatusFresh
+            ? "ANALYZING"
+            : hubSeatState === "monitoring"
+              ? "MONITORING"
+              : hubSeatState === "safe"
+                ? "NORMAL"
+                : "ANALYZING";
   useEffect(() => {
     if (cameraVerifying) {
       cameraVerificationWasActiveRef.current = true;
@@ -794,6 +822,7 @@ export default function Home() {
                     state={assignments[seatNo] ? getSeatState(seatNo) : "empty"}
                     isHardwareSeat={seatNo === hardwareSeatNo}
                     vitals={seatNo === hardwareSeatNo && activeSessions[seatNo] ? vitalSigns : undefined}
+                    startupSyncing={seatNo === hardwareSeatNo && linkedSessionInitializing}
                     freshnessSeconds={seatNo === hardwareSeatNo && activeSessions[seatNo] ? liveUpdatedSeconds : null}
                     detailText={recentCompleted[seatNo] ? "Session saved · Tap to review" : (activeSessions[seatNo] && seatNo !== hardwareSeatNo ? "Session active · No sensor" : undefined)}
                     monitoringLimited={seatNo === hardwareSeatNo && Boolean(activeSessions[seatNo]) && hardwareMonitoringLimited}
@@ -1076,9 +1105,9 @@ export default function Home() {
           waitingForOccupant={liveDetailSeatNo === hardwareSeatNo && waitingForOccupant}
           updatedSeconds={liveDetailSeatNo === hardwareSeatNo ? liveUpdatedSeconds : null}
           fusionLabel={liveFusionLabel}
-          heartRateBpm={vitalSigns.heartRateBpm}
-          respirationRateBpm={vitalSigns.respirationRateBpm}
-          surfaceTemperatureC={liveSurfaceTemperatureC}
+          heartRateBpm={linkedSessionInitializing ? null : vitalSigns.heartRateBpm}
+          respirationRateBpm={linkedSessionInitializing ? null : vitalSigns.respirationRateBpm}
+          surfaceTemperatureC={linkedSessionInitializing ? null : liveSurfaceTemperatureC}
           occupancyLabel={liveOccupancyLabel}
           movementLabel={liveMovementLabel}
           cameraLabel={liveCameraLabel}

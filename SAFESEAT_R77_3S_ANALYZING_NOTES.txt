@@ -1,0 +1,28 @@
+SAFESEAT APP R77 — 3-SECOND ANALYZING STARTUP (PATCH ONLY)
+Based directly on uploaded safeseat-demo-app-master (8).zip (2026-10-17 archive).
+
+Apply: extract the ZIP into the ROOT of your existing SafeSeat app project,
+allowing these two files to overwrite their existing versions.
+
+Updated:
+  src/app/(tabs)/home/index.tsx
+  src/components/home-monitor-row.tsx
+
+Behavior:
+- Uses the linked seat's existing active-session startedAt timestamp.
+- During the first 3 seconds of an occupied, connected, ready session, Home shows
+  ANALYZING / Syncing live readings instead of immediately showing SAFE.
+- A WARNING or EMERGENCY from the Main Hub bypasses the presentation delay.
+- Known empty seat remains WAITING; unknown occupancy stays ANALYZING.
+- If Hub telemetry is unavailable or older than 5 seconds, previously cached
+  SAFE is not presented as a fresh result.
+- No second delay after switching tabs, returning to Home, or app relaunch.
+- Live sensor collection, Fusion, SMS, consent, and other tabs are untouched.
+- Live Seat Details hides HR / RR / surface-temp readings during startup sync.
+
+Checks:
+- TSX transpilation/syntax passed for both modified files.
+- Eleven focused occupancy/startup/alert/offline/status checks passed.
+- Existing repository regression suite has the identical baseline results:
+  18 passed / 5 failed in the original uploaded project and this patch.
+- No full on-device APK/iOS test was run in this environment.

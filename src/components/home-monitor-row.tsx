@@ -33,6 +33,7 @@ type Props = {
   state: MonitorSeatState;
   isHardwareSeat?: boolean;
   vitals?: MonitorVitals;
+  startupSyncing?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
   delayLongPress?: number;
@@ -88,7 +89,7 @@ const stateMeta = (
 };
 
 export default function HomeMonitorRow({
-  seatNo, role, name, photo, state, isHardwareSeat = false, vitals, onPress, onLongPress, delayLongPress, freshnessSeconds, detailText, monitoringLimited = false,
+  seatNo, role, name, photo, state, isHardwareSeat = false, vitals, startupSyncing = false, onPress, onLongPress, delayLongPress, freshnessSeconds, detailText, monitoringLimited = false,
 }: Props) {
   const themes = useTheme();
   const { width, height } = useWindowDimensions();
@@ -99,9 +100,11 @@ export default function HomeMonitorRow({
   const displayName = name || "Unassigned";
   const showVitals = isHardwareSeat && (state === "safe" || state === "warning" || state === "emergency" || state === "unknown" || state === "monitoring");
   const freshness = freshnessSeconds === null || freshnessSeconds === undefined ? "" : ` · LIVE ${freshnessSeconds}s`;
-  const liveLine = vitals?.trusted
-    ? `HR ${vitals.heartRateBpm ?? "—"} · RR ${vitals.respirationRateBpm ?? "—"}${freshness}`
-    : `${vitals?.statusLabel === "REACQUIRING" ? "Vitals reacquiring" : "Vitals unavailable"}${freshness}`;
+  const liveLine = startupSyncing
+    ? "Syncing live readings…"
+    : vitals?.trusted
+      ? `HR ${vitals.heartRateBpm ?? "—"} · RR ${vitals.respirationRateBpm ?? "—"}${freshness}`
+      : `${vitals?.statusLabel === "REACQUIRING" ? "Vitals reacquiring" : "Vitals unavailable"}${freshness}`;
   const roleLabel = seatNo === 1 ? "DRIVER" : role.toUpperCase();
   const showLimited = monitoringLimited && isHardwareSeat && state !== "warning" && state !== "emergency" && state !== "waiting" && state !== "offline";
 
